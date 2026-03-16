@@ -1,0 +1,101 @@
+.wetter-inner {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 2px 0;
+}
+
+.wetter-top {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.wetter-icon {
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
+}
+
+.wetter-temp {
+    font-size: 1.35rem;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    line-height: 1;
+    color: var(--text-primary, #fff);
+}
+
+.wetter-desc {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    opacity: 0.6;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 140px;
+}
+
+.wetter-location {
+    font-size: 0.6rem;
+    opacity: 0.45;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 140px;
+    margin-bottom: 6px;
+}
+
+.wetter-forecast {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    padding-top: 5px;
+}
+
+.wetter-day {
+    display: grid;
+    grid-template-columns: 20px 22px 1fr 1fr;
+    align-items: center;
+    gap: 4px;
+}
+
+.wetter-day-name {
+    font-size: 0.62rem;
+    font-weight: 600;
+    opacity: 0.7;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.wetter-day-icon {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
+}
+
+.wetter-day-max {
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-align: right;
+    color: var(--text-primary, #fff);
+}
+
+.wetter-day-min {
+    font-size: 0.62rem;
+    opacity: 0.45;
+    text-align: right;
+}
+
+.wetter-loading,
+.wetter-error {
+    font-size: 0.65rem;
+    opacity: 0.5;
+    padding: 2px 0;
+}
+
+.wetter-error {
+    color: #ff6b6b;
+}

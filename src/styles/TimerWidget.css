@@ -1,0 +1,264 @@
+.t-app {
+  width: 500px;
+  height: 500px;
+  font-family: -apple-system, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+  color: #fff;
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.t-screen {
+  position: absolute;
+  inset: 0;
+  width: 500px;
+  height: 500px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  opacity: 0;
+  transform: translateX(60px);
+  transition: opacity 0.32s ease, transform 0.32s ease;
+  pointer-events: none;
+}
+
+.t-screen.on {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: all;
+}
+
+.t-screen.off {
+  opacity: 0;
+  transform: translateX(-60px);
+}
+
+.t-bar {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 22px 28px 14px;
+}
+
+.t-bar-cancel {
+  background: none;
+  border: none;
+  color: #0a84ff;
+  font-size: 17px;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+
+.t-bar-title {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.t-bar-start {
+  background: none;
+  border: none;
+  font-size: 17px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  color: #0a84ff;
+  padding: 0;
+}
+
+.t-bar-start:disabled {
+  color: rgba(10, 132, 255, 0.3);
+  cursor: default;
+}
+
+.t-picker {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 100%;
+}
+
+.t-picker-hl {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80%;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  pointer-events: none;
+  z-index: 4;
+}
+
+.t-drums {
+  display: flex;
+  align-items: center;
+  position: relative;
+  z-index: 2;
+}
+
+.t-drum-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 120px;
+}
+
+.t-drum-vp {
+  height: 200px;
+  overflow: hidden;
+  position: relative;
+  cursor: ns-resize;
+  touch-action: none;
+  width: 100%;
+}
+
+.t-drum-inner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  will-change: transform;
+}
+
+.t-drum-item {
+  height: 40px;
+  line-height: 40px;
+  text-align: center;
+  font-size: 22px;
+  font-weight: 300;
+  color: rgba(255, 255, 255, 0.2);
+  transition: color 0.1s, font-size 0.1s;
+}
+
+.t-drum-item.sel {
+  color: #fff;
+  font-size: 24px;
+  font-weight: 400;
+}
+
+.t-drum-item.near {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.t-fade-top {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 80px;
+  background: linear-gradient(to bottom, #000, transparent);
+  pointer-events: none;
+  z-index: 3;
+}
+
+.t-fade-bot {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 80px;
+  background: linear-gradient(to top, #000, transparent);
+  pointer-events: none;
+  z-index: 3;
+}
+
+.t-drum-sep {
+  font-size: 24px;
+  color: rgba(255, 255, 255, 0.5);
+  padding-bottom: 22px;
+  align-self: center;
+}
+
+.t-drum-label {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.38);
+  margin-top: 7px;
+  letter-spacing: 0.3px;
+}
+
+.t-ring-screen {
+  justify-content: space-between;
+}
+
+.t-ring-area {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.t-arc {
+  transition: stroke-dashoffset 0.3s linear, stroke 0.5s ease;
+}
+
+.t-ring-time {
+  font-size: 68px;
+  font-weight: 100;
+  letter-spacing: -3px;
+  fill: #fff;
+  font-family: -apple-system, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+}
+
+.t-btns {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0 48px 40px;
+}
+
+.t-btn {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  border: none;
+  font-size: 17px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: opacity 0.1s, transform 0.1s;
+}
+
+.t-btn:active {
+  opacity: 0.65;
+  transform: scale(0.93);
+}
+
+.t-btn-cancel {
+  background: #1c1c1e;
+  color: #fff;
+}
+
+.t-btn-pause {
+  background: #1e3557;
+  color: #0a84ff;
+}
+
+.t-btn-resume {
+  background: #0a84ff;
+  color: #fff;
+}
+
+.t-done-label {
+  font-size: 17px;
+  font-weight: 600;
+  color: #0a84ff;
+  padding-bottom: 10px;
+  animation: t-blink 1s ease-in-out infinite;
+}
+
+@keyframes t-blink {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.3;
+  }
+}

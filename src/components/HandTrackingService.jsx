@@ -19,17 +19,15 @@ const clamp01 = (v) => Math.min(Math.max(v, 0), 1);
 const FPS_SMOOTH = 0.9;
 
 const HAND_CONNECTIONS = [
-  [0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],
-  [0,9],[9,10],[10,11],[11,12],[0,13],[13,14],[14,15],[15,16],
-  [0,17],[17,18],[18,19],[19,20],[5,9],[9,13],[13,17],
+  [0, 1], [1, 2], [2, 3], [3, 4], [0, 5], [5, 6], [6, 7], [7, 8],
+  [0, 9], [9, 10], [10, 11], [11, 12], [0, 13], [13, 14], [14, 15], [15, 16],
+  [0, 17], [17, 18], [18, 19], [19, 20], [5, 9], [9, 13], [13, 17],
 ];
-
 
 const LABEL_TO_SLOT = { Left: 0, Right: 1 };
 
-
 function isPalmFacingCamera(landmarks, handLabel) {
-  const wrist    = landmarks[0];
+  const wrist = landmarks[0];
   const indexMCP = landmarks[5];
   const pinkyMCP = landmarks[17];
   const v1 = { x: indexMCP.x - wrist.x, y: indexMCP.y - wrist.y };
@@ -39,60 +37,60 @@ function isPalmFacingCamera(landmarks, handLabel) {
 }
 
 const HandTrackingService = ({ onHandPosition, onGesture, settings = {}, enabled }) => {
-  const videoRef           = useRef(null);
-  const canvasRef          = useRef(null);
-  const procCanvasRef      = useRef(null);
-  const procCtxRef         = useRef(null);
-  const settingsRef        = useRef(settings);
-  const posCallbackRef     = useRef(onHandPosition);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const procCanvasRef = useRef(null);
+  const procCtxRef = useRef(null);
+  const settingsRef = useRef(settings);
+  const posCallbackRef = useRef(onHandPosition);
   const gestureCallbackRef = useRef(onGesture);
-  const showPreviewRef     = useRef(settings.showPreview || false);
-  const isProcessingRef    = useRef(false);
-  const smoothedRef        = useRef({});
-  const smoothingRef       = useRef(0);
-  const sensitivityRef     = useRef(1);
-  const cameraRef          = useRef(null);
-  const handsRef           = useRef(null);
-  const fpsRef             = useRef({ value: 0, last: performance?.now?.() ?? Date.now() });
+  const showPreviewRef = useRef(settings.showPreview || false);
+  const isProcessingRef = useRef(false);
+  const smoothedRef = useRef({});
+  const smoothingRef = useRef(0);
+  const sensitivityRef = useRef(1);
+  const cameraRef = useRef(null);
+  const handsRef = useRef(null);
+  const fpsRef = useRef({ value: 0, last: performance?.now?.() ?? Date.now() });
 
   const [previewPos, setPreviewPos] = useState({ x: 16, y: 16 });
-  const [dragging, setDragging]     = useState(false);
+  const [dragging, setDragging] = useState(false);
   const [dragOrigin, setDragOrigin] = useState({ x: 0, y: 0 });
 
-  const isEnabled   = enabled ?? settings.enabled ?? false;
+  const isEnabled = enabled ?? settings.enabled ?? false;
   const showPreview = settings.showPreview || false;
-  const orientRot   = CAMERA_ORIENTATION_ROTATIONS[settings.cameraOrientation || 'landscape'] ?? 0;
-  const camRot      = CAMERA_POSITION_ROTATIONS[settings.cameraPosition || 'top'] ?? 0;
+  const orientRot = CAMERA_ORIENTATION_ROTATIONS[settings.cameraOrientation || 'landscape'] ?? 0;
+  const camRot = CAMERA_POSITION_ROTATIONS[settings.cameraPosition || 'top'] ?? 0;
 
   useEffect(() => {
-    settingsRef.current    = settings;
+    settingsRef.current = settings;
     showPreviewRef.current = settings.showPreview || false;
-    smoothingRef.current   = clampVal(settings.smoothing,   0,    0.95, 0);
-    sensitivityRef.current = clampVal(settings.sensitivity, 0.25, 3,    1);
+    smoothingRef.current = clampVal(settings.smoothing, 0, 0.95, 0);
+    sensitivityRef.current = clampVal(settings.sensitivity, 0.25, 3, 1);
   }, [settings]);
 
-  useEffect(() => { posCallbackRef.current     = onHandPosition; }, [onHandPosition]);
-  useEffect(() => { gestureCallbackRef.current = onGesture;      }, [onGesture]);
+  useEffect(() => { posCallbackRef.current = onHandPosition; }, [onHandPosition]);
+  useEffect(() => { gestureCallbackRef.current = onGesture; }, [onGesture]);
   useEffect(() => () => {
-    posCallbackRef.current     = null;
+    posCallbackRef.current = null;
     gestureCallbackRef.current = null;
   }, []);
 
   const onResults = useCallback((results) => {
     const canvas = canvasRef.current;
-    const video  = videoRef.current;
+    const video = videoRef.current;
     if (!canvas || !video) return;
 
     const ctx = canvas.getContext('2d');
-    const w = canvas.width  = video.videoWidth;
+    const w = canvas.width = video.videoWidth;
     const h = canvas.height = video.videoHeight;
     ctx.clearRect(0, 0, w, h);
 
     const s = settingsRef.current || {};
 
-    const nowTs   = performance?.now?.() ?? Date.now();
+    const nowTs = performance?.now?.() ?? Date.now();
     const elapsed = nowTs - fpsRef.current.last;
-    fpsRef.current.last  = nowTs;
+    fpsRef.current.last = nowTs;
     fpsRef.current.value = FPS_SMOOTH * fpsRef.current.value +
       (1 - FPS_SMOOTH) * (elapsed > 0 ? 1000 / elapsed : 0);
 
@@ -112,11 +110,10 @@ const HandTrackingService = ({ onHandPosition, onGesture, settings = {}, enabled
       ctx.restore();
     }
 
-    const allHands  = results.multiHandLandmarks || [];
-    const allLabels = results.multiHandedness    || [];
+    const allHands = results.multiHandLandmarks || [];
+    const allLabels = results.multiHandedness || [];
 
-
-    const seenLabels  = new Set();
+    const seenLabels = new Set();
     const dedupedHands = [];
     allHands.forEach((hand, i) => {
       const label = allLabels[i]?.label || 'Left';
@@ -135,15 +132,15 @@ const HandTrackingService = ({ onHandPosition, onGesture, settings = {}, enabled
       return;
     }
 
-    dedupedHands.forEach(({ hand, label }) => {
-      const slot        = LABEL_TO_SLOT[label] ?? 0;
+    for (const { hand, label } of dedupedHands) {
+      const slot = LABEL_TO_SLOT[label] ?? 0;
       const palmVisible = isPalmFacingCamera(hand, label);
       activeSlots.add(slot);
 
       if (showPreviewRef.current) {
-        const mirrored  = hand.map(lm => ({ ...lm, x: 1 - lm.x }));
+        const mirrored = hand.map(lm => ({ ...lm, x: 1 - lm.x }));
         const lineColor = palmVisible ? '#00ff00' : '#888888';
-        const dotColor  = palmVisible ? '#ff0000' : '#555555';
+        const dotColor = palmVisible ? '#ff0000' : '#555555';
         drawConnectors(ctx, mirrored, HAND_CONNECTIONS, { color: lineColor, lineWidth: 2 });
         drawLandmarks(ctx, mirrored, { color: dotColor, lineWidth: 1 });
         const mWrist = mirrored[0];
@@ -169,49 +166,93 @@ const HandTrackingService = ({ onHandPosition, onGesture, settings = {}, enabled
             ? smoothedRef.current[slot].y * window.innerHeight
             : window.innerHeight / 2,
         });
-        return;
+        continue;
       }
 
-      const thumb = hand[4], index = hand[8], pinky = hand[20];
+      const thumb = hand[4], index = hand[8], middle = hand[12], pinky = hand[20];
+      if (!thumb || !index || !middle || !pinky) continue;
+
       let total = 0, count = 0;
       for (const [a, b] of HAND_CONNECTIONS) {
+        if (!hand[a] || !hand[b]) continue;
         total += Math.hypot((hand[a].x - hand[b].x) * w, (hand[a].y - hand[b].y) * h);
         count++;
       }
-      const al = count ? total / count : 1;
+      const al = count > 0 ? total / count : 1;
+      if (!al || !isFinite(al) || al <= 0) continue;
 
       const tx = thumb.x * w, ty = thumb.y * h;
       const ix = index.x * w, iy = index.y * h;
-      const px = pinky.x * w, py = pinky.y * h;
+      const mdx = middle.x * w, mdy = middle.y * h;
+      const pkx = pinky.x * w, pky = pinky.y * h;
 
-      const pinchDist  = Math.hypot(tx - ix, ty - iy);
-      const pinkyDist  = Math.hypot(tx - px, ty - py);
-      const pinchThr   = s.pinchSensitivity || 0.2;
-      const normPinch  = clamp01((pinchDist - 10) / (al * 4.5));
-      const pinchStr   = Math.max(0, 1 - normPinch / pinchThr);
-      const isPinching = normPinch < pinchThr;
+      const pinchDist = Math.hypot(tx - ix, ty - iy);
+      const clickDist = Math.hypot(tx - mdx, ty - mdy);
+      const pinkyDist = Math.hypot(tx - pkx, ty - pky);
+      const pinchThr = s.pinchSensitivity || 0.2;
+      const normPinch = clamp01(pinchDist / (al * 4.5));
+      const scaledThr = al * 4.5 * pinchThr;
+      const pinchStr = scaledThr > 0 ? Math.max(0, 1 - pinchDist / scaledThr) : 0;
+      const isPinching = pinchDist < scaledThr;
+      const clickStr = scaledThr > 0 ? Math.max(0, 1 - clickDist / scaledThr) : 0;
+      const isClicking = clickDist < scaledThr;
 
-      const fistThr    = s.fistThreshold || 0.35;
-      const openThr    = Math.max(s.openThreshold || 0.65, fistThr + 0.1);
-      const normPinky  = al ? pinkyDist / al : 0;
-      const isFist     = normPinky <= fistThr;
+      const fistThr = s.fistThreshold || 0.35;
+      const openThr = Math.max(s.openThreshold || 0.65, fistThr + 0.1);
+      const normPinky = al ? pinkyDist / al : 0;
+      const isFist = normPinky <= fistThr;
       const isHandOpen = normPinky >= openThr;
 
-      const mx = (thumb.x + index.x) / 2;
-      const my = (thumb.y + index.y) / 2;
+      const mcpIndex = hand[5];
+      const mcpMiddle = hand[9];
+      const mcpRing = hand[13];
+      const mcpPinky = hand[17];
+      if (!mcpIndex || !mcpMiddle || !mcpRing || !mcpPinky) continue;
+
+      const mcpX = (mcpIndex.x + mcpMiddle.x + mcpRing.x + mcpPinky.x) / 4;
+      const mcpY = (mcpIndex.y + mcpMiddle.y + mcpRing.y + mcpPinky.y) / 4;
+
+      const fmx = (thumb.x + index.x) / 2;
+      const fmy = (thumb.y + index.y) / 2;
+
+      const BLEND = 0.4;
+      const mx = mcpX + (fmx - mcpX) * BLEND;
+      const my = mcpY + (fmy - mcpY) * BLEND;
+
+      const pinchMidX = fmx * window.innerWidth;
+      const pinchMidY = fmy * window.innerHeight;
+
       const { x: nx, y: ny } = transformHandCoordinates(
         mx, my, s.cameraOrientation || 'landscape', s.cameraPosition || 'top'
       );
+
+      const margin = clamp01(s.cameraMargin ?? 0.15);
+      const remap = (v) => clamp01((v - margin) / (1 - 2 * margin));
+      const remapX = remap(nx);
+      const remapY = remap(ny);
+
       const sens = sensitivityRef.current;
-      const ax = clamp01(((nx - 0.5) * sens) + 0.5);
-      const ay = clamp01(((ny - 0.5) * sens) + 0.5);
+      const ax = clamp01(((remapX - 0.5) * sens) + 0.5);
+      const ay = clamp01(((remapY - 0.5) * sens) + 0.5);
 
       const sm = smoothingRef.current;
+      const prev = smoothedRef.current[slot];
       let sx = ax, sy = ay;
-      if (sm > 0 && smoothedRef.current[slot]) {
-        const alpha = 1 - sm;
-        sx = smoothedRef.current[slot].x + (ax - smoothedRef.current[slot].x) * alpha;
-        sy = smoothedRef.current[slot].y + (ay - smoothedRef.current[slot].y) * alpha;
+
+      if (prev) {
+        const moveDist = Math.hypot(ax - prev.x, ay - prev.y);
+        const deadzone = 0.008 / Math.max(sensitivityRef.current, 0.25);
+
+        if (moveDist < deadzone) {
+          sx = prev.x;
+          sy = prev.y;
+        } else if (sm > 0) {
+          const effectiveSm = isPinching ? Math.min(sm + 0.12, 0.92) : sm;
+          const adaptiveSm = moveDist > 0.06 ? Math.max(effectiveSm - 0.15, 0) : effectiveSm;
+          const alpha = 1 - adaptiveSm;
+          sx = prev.x + (ax - prev.x) * alpha;
+          sy = prev.y + (ay - prev.y) * alpha;
+        }
       }
       smoothedRef.current[slot] = { x: sx, y: sy };
 
@@ -223,31 +264,42 @@ const HandTrackingService = ({ onHandPosition, onGesture, settings = {}, enabled
         isPinching,
         pinchStrength: Math.min(pinchStr, 1),
         pinchDistance: normPinch,
+        isClicking,
+        clickStrength: Math.min(clickStr, 1),
         isFist,
         fistStrength: clamp01(1 - normPinky / fistThr),
         isHandOpen,
         pinkyThumbDistanceRatio: normPinky,
         handedness: label.toLowerCase(),
         handIndex: slot,
+        handSize: al,
+        pinchMidX,
+        pinchMidY,
       });
 
       if (showPreviewRef.current) {
         const mirrored = hand.map(lm => ({ ...lm, x: 1 - lm.x }));
         const mTX = mirrored[4].x * w, mTY = mirrored[4].y * h;
         const mIX = mirrored[8].x * w, mIY = mirrored[8].y * h;
+        const mMDX = mirrored[12].x * w, mMDY = mirrored[12].y * h;
         const midX = (mTX + mIX) / 2, midY = (mTY + mIY) / 2;
-        ctx.beginPath(); ctx.arc(mTX, mTY, 6, 0, 2 * Math.PI);
+        const handRatio = al / w;
+        const dotR = Math.max(0.8, w * handRatio * 0.07);
+        const midR = Math.max(1, w * handRatio * (isPinching ? 0.11 : 0.08));
+        ctx.beginPath(); ctx.arc(mTX, mTY, dotR, 0, 2 * Math.PI);
         ctx.fillStyle = '#FF00FF'; ctx.fill();
-        ctx.beginPath(); ctx.arc(mIX, mIY, 6, 0, 2 * Math.PI);
+        ctx.beginPath(); ctx.arc(mIX, mIY, dotR, 0, 2 * Math.PI);
         ctx.fillStyle = '#00FF88'; ctx.fill();
+        ctx.beginPath(); ctx.arc(mMDX, mMDY, dotR, 0, 2 * Math.PI);
+        ctx.fillStyle = '#FFD700'; ctx.fill();
         ctx.beginPath();
-        ctx.arc(midX, midY, isPinching ? 12 : 8, 0, 2 * Math.PI);
+        ctx.arc(midX, midY, midR, 0, 2 * Math.PI);
         ctx.globalAlpha = isPinching ? 0.9 : 0.6;
-        ctx.fillStyle   = isPinching ? '#ffffff' : '#00FFFF';
+        ctx.fillStyle = isPinching ? '#ffffff' : '#00FFFF';
         ctx.fill();
         ctx.globalAlpha = 1;
       }
-    });
+    }
 
     for (let slot = 0; slot < 2; slot++) {
       if (!activeSlots.has(slot)) {
@@ -272,7 +324,7 @@ const HandTrackingService = ({ onHandPosition, onGesture, settings = {}, enabled
     const init = async () => {
       try {
         const hands = new Hands({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
-        const cfg   = getHandTrackingRuntimeConfig(settingsRef.current);
+        const cfg = getHandTrackingRuntimeConfig(settingsRef.current);
         hands.setOptions({ ...cfg.options, maxNumHands: 2 });
         hands.onResults(onResults);
         if (dead) { hands.close?.(); return; }
@@ -288,7 +340,7 @@ const HandTrackingService = ({ onHandPosition, onGesture, settings = {}, enabled
                 procCanvasRef, procCtxRef,
                 getHandTrackingRuntimeConfig(settingsRef.current).processing
               );
-              try   { await handsRef.current?.send({ image: src }); }
+              try { await handsRef.current?.send({ image: src }); }
               finally { isProcessingRef.current = false; }
             },
             width: cfg.camera.width, height: cfg.camera.height,
@@ -320,15 +372,15 @@ const HandTrackingService = ({ onHandPosition, onGesture, settings = {}, enabled
   useEffect(() => {
     if (!dragging) return;
     const move = (e) => setPreviewPos({
-      x: Math.max(0, Math.min(e.clientX - dragOrigin.x, window.innerWidth  - 272)),
+      x: Math.max(0, Math.min(e.clientX - dragOrigin.x, window.innerWidth - 272)),
       y: Math.max(0, Math.min(e.clientY - dragOrigin.y, window.innerHeight - 200)),
     });
     const up = () => setDragging(false);
     document.addEventListener('mousemove', move);
-    document.addEventListener('mouseup',   up);
+    document.addEventListener('mouseup', up);
     return () => {
       document.removeEventListener('mousemove', move);
-      document.removeEventListener('mouseup',   up);
+      document.removeEventListener('mouseup', up);
     };
   }, [dragging, dragOrigin]);
 

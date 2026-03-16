@@ -1,0 +1,128 @@
+.widget-drag-manager {
+    pointer-events: none;
+}
+
+.draggable-widget {
+    position: fixed;
+    z-index: 100;
+    border-radius: 16px;
+    overflow: hidden;
+    min-width: 220px;
+    user-select: none;
+    box-shadow:
+        0 4px 24px rgba(0, 0, 0, 0.25),
+        0 0 0 1px rgba(255, 255, 255, 0.06);
+    opacity: 1;
+    transition: box-shadow 0.2s ease;
+    pointer-events: all;
+}
+
+.draggable-widget--dragging {
+    z-index: 1000;
+    box-shadow:
+        0 24px 64px rgba(0, 0, 0, 0.5),
+        0 0 0 1.5px rgba(59, 130, 246, 0.5);
+    opacity: 0.93;
+    transition: box-shadow 0.1s ease, opacity 0.1s ease;
+}
+
+.draggable-widget__header {
+    background: rgba(22, 22, 32, 0.97);
+    padding: 9px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: grab;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.draggable-widget__header:hover,
+.draggable-widget__header.hand-hover {
+    outline: 1px solid rgba(155, 92, 252, 0.6);
+    background: rgba(155, 92, 252, 0.08);
+}
+
+.draggable-widget__header--grabbing {
+    cursor: grabbing;
+}
+
+.draggable-widget__title {
+    color: rgba(255, 255, 255, 0.65);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+
+
+.draggable-widget__content {
+    background: rgba(16, 16, 24, 0.95);
+    min-height: 130px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    color: rgba(255, 255, 255, 0.3);
+    font-size: 13px;
+}
+
+.trash-zone {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 110px;
+    z-index: 200;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    background: transparent;
+    border-top: 1px solid transparent;
+    transition: all 0.2s ease;
+}
+
+.trash-zone--active {
+    background: rgba(239, 68, 68, 0.06);
+    border-top-color: rgba(239, 68, 68, 0.25);
+    backdrop-filter: blur(6px);
+}
+
+.trash-zone--over {
+    background: rgba(239, 68, 68, 0.22);
+    border-top-color: rgba(239, 68, 68, 0.6);
+}
+
+.trash-zone__icon {
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.trash-zone__icon--normal {
+    stroke: rgba(239, 68, 68, 0.55);
+    width: 26px;
+    height: 26px;
+}
+
+.trash-zone__icon--over {
+    stroke: #ef4444;
+    width: 34px;
+    height: 34px;
+}
+
+.trash-zone__label {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    transition: color 0.2s ease;
+}
+
+.trash-zone__label--normal {
+    color: rgba(239, 68, 68, 0.55);
+}
+
+.trash-zone__label--over {
+    color: #ef4444;
+}

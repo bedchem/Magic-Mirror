@@ -1,0 +1,60 @@
+.stocks-inner {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 2px 0;
+}
+
+.stocks-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    align-items: center;
+    gap: 6px;
+}
+
+.stocks-ticker {
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    opacity: 0.9;
+}
+
+.stocks-price {
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-align: right;
+    color: var(--text-primary, #fff);
+}
+
+.stocks-change {
+    font-size: 0.62rem;
+    font-weight: 600;
+    text-align: right;
+    min-width: 52px;
+}
+
+.stocks-change.up {
+    color: #4ade80;
+}
+
+.stocks-change.down {
+    color: #f87171;
+}
+
+.stocks-loading,
+.stocks-error {
+    font-size: 0.65rem;
+    opacity: 0.5;
+    padding: 2px 0;
+}
+
+.stocks-error {
+    color: #ff6b6b;
+}
+
+.stocks-hint {
+    font-size: 0.55rem;
+    opacity: 0.3;
+    margin-top: 2px;
+    letter-spacing: 0.04em;
+}

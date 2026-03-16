@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import HandTrackingService from '../components/HandTrackingService';
+import WidgetDragManager from '../components/WidgetDragManager';
 
 const defaultSettings = {
   enabled: true,
@@ -14,104 +15,272 @@ const defaultSettings = {
   pinchSensitivity: 0.2,
 };
 
+const ACTIVE_COLOR = '59,130,246';
+const ACTIVE_DOT = '147,197,253';
+const GRAY_COLOR = '120,120,120';
+const GRAY_DOT = '180,180,180';
 
-const ACTIVE_COLOR  = '59,130,246';
-const ACTIVE_DOT    = '147,197,253';
-const GRAY_COLOR    = '120,120,120';
-const GRAY_DOT      = '180,180,180';
+const NAV_ITEMS = [
+  {
+    label: 'Datetime',
+    widgetId: 'DatetimeWidget',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="30" height="30">
+        <circle cx="12" cy="12" r="10" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Kalender',
+    widgetId: 'KalenderWidget',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="30" height="30">
+        <rect x="3" y="4" width="18" height="18" rx="2" />
+        <line x1="16" y1="2" x2="16" y2="6" />
+        <line x1="8" y1="2" x2="8" y2="6" />
+        <line x1="3" y1="10" x2="21" y2="10" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Timer',
+    widgetId: 'TimerWidget',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="30" height="30">
+        <circle cx="12" cy="13" r="8" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 13l3-2" />
+        <path d="M9 2h6" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Wetter',
+    widgetId: 'WetterWidget',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="30" height="30">
+        <path d="M17.5 19a4.5 4.5 0 000-9 6 6 0 10-11.7 1.5A3.5 3.5 0 006 19h11.5z" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Stundenplan',
+    widgetId: 'StundenplanWidget',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="30" height="30">
+        <rect x="3" y="4" width="18" height="18" rx="2" />
+        <line x1="3" y1="10" x2="21" y2="10" />
+        <line x1="8" y1="10" x2="8" y2="22" />
+        <line x1="16" y1="10" x2="16" y2="22" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Stocks',
+    widgetId: 'StocksWidget',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
+        <path d="M3 3v18h18" />
+        <path d="M7 14l4-4 3 3 5-6" />
+        <circle cx="7" cy="14" r="1" />
+        <circle cx="11" cy="10" r="1" />
+        <circle cx="14" cy="13" r="1" />
+        <circle cx="19" cy="7" r="1" />
+      </svg>
+    ),
+  },
+  {
+    label: 'News',
+    widgetId: 'NewsWidget',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="30" height="30">
+        <rect x="3" y="4" width="18" height="16" rx="2" />
+        <line x1="7" y1="8" x2="17" y2="8" />
+        <line x1="7" y1="12" x2="17" y2="12" />
+        <line x1="7" y1="16" x2="13" y2="16" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Spotify',
+    widgetId: 'SpotifyWidget',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="30" height="30">
+        <path d="M9 18V5l12-2v13" />
+        <circle cx="6" cy="18" r="3" />
+        <circle cx="18" cy="16" r="3" />
+      </svg>
+    ),
+  },
+];
+
+function HandNav({ handPositions, onSpawnWidget }) {
+  const [expanded, setExpanded] = useState(false);
+  const [hoveredIdx, setHoveredIdx] = useState(null);
+  const plusRef = useRef(null);
+  const itemRefs = useRef([]);
+  const wasPinching = useRef({});
+
+  useEffect(() => {
+    const positions = Object.values(handPositions);
+    if (!positions.length) return;
+
+    const plusEl = plusRef.current;
+    if (!plusEl) return;
+    const plusRect = plusEl.getBoundingClientRect();
+
+    let handOverMenu = false;
+
+    for (const pos of positions) {
+      if (!pos.detected || pos.palmVisible === false) continue;
+      const { x, y, isPinching, handIndex } = pos;
+
+      const MARGIN = 40;
+      const overPlus =
+        x >= plusRect.left - MARGIN &&
+        x <= plusRect.right + MARGIN &&
+        y >= plusRect.top - MARGIN &&
+        y <= plusRect.bottom + MARGIN;
+
+      if (overPlus) handOverMenu = true;
+
+      if (expanded) {
+        let found = null;
+        itemRefs.current.forEach((el, i) => {
+          if (!el) return;
+          const r = el.getBoundingClientRect();
+          if (x >= r.left - 20 && x <= r.right + 20 && y >= r.top - 10 && y <= r.bottom + 10) {
+            found = i;
+            handOverMenu = true;
+          }
+        });
+        setHoveredIdx(found);
+
+        if (isPinching && !wasPinching.current[handIndex] && found !== null) {
+          onSpawnWidget(NAV_ITEMS[found].widgetId);
+        }
+      }
+
+      wasPinching.current[handIndex] = isPinching;
+    }
+
+    setExpanded(handOverMenu);
+    if (!handOverMenu) setHoveredIdx(null);
+  }, [handPositions, expanded, onSpawnWidget]);
+
+  return (
+    <>
+      <button
+        ref={plusRef}
+        onClick={() => setExpanded(v => !v)}
+        className="hand-nav__toggle"
+        data-expanded={expanded}
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="30" height="30">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+        </svg>
+      </button>
+
+      <nav className="hand-nav__list">
+        {NAV_ITEMS.map((item, i) => {
+          const isHovered = hoveredIdx === i;
+          const delay = `${50 + i * 60}ms`;
+          return (
+            <div
+              key={item.label}
+              ref={el => { itemRefs.current[i] = el; }}
+              className="hand-nav__item"
+              data-expanded={expanded}
+              style={{ transitionDelay: delay }}
+            >
+              <button
+                onClick={() => onSpawnWidget(item.widgetId)}
+                className="hand-nav__btn"
+                data-hovered={isHovered}
+              >
+                {item.icon}
+              </button>
+              {isHovered && (
+                <span className="hand-nav__label">{item.label}</span>
+              )}
+            </div>
+          );
+        })}
+      </nav>
+    </>
+  );
+}
 
 function LiveCursor({ handIndex }) {
   const cursorRef = useRef(null);
-  const dotRef    = useRef(null);
-  const ringRef   = useRef(null);
-  const isCircle  = handIndex === 0;
+  const dotRef = useRef(null);
+  const ringRef = useRef(null);
+  const isCircle = handIndex === 0;
 
   useEffect(() => {
     if (!window.__updateHandCursor) window.__updateHandCursor = {};
-
     window.__updateHandCursor[handIndex] = (pos) => {
-      const el   = cursorRef.current;
-      const dot  = dotRef.current;
+      const el = cursorRef.current;
+      const dot = dotRef.current;
       const ring = ringRef.current;
       if (!el) return;
+      if (!pos.detected) { el.style.opacity = '0'; return; }
 
-      if (!pos.detected) {
-        el.style.opacity = '0';
-        return;
-      }
-
-      el.style.opacity  = '1';
+      el.style.opacity = '1';
       el.style.transform = `translate(${pos.x - 20}px, ${pos.y - 20}px)`;
 
-      const palmOk     = pos.palmVisible !== false;
-      const rc         = palmOk ? ACTIVE_COLOR : GRAY_COLOR;
-      const dc         = palmOk ? ACTIVE_DOT   : GRAY_DOT;
-      const s          = palmOk ? (pos.pinchStrength || 0) : 0;
+      const palmOk = pos.palmVisible !== false;
+      const rc = palmOk ? ACTIVE_COLOR : GRAY_COLOR;
+      const dc = palmOk ? ACTIVE_DOT : GRAY_DOT;
+      const s = palmOk ? (pos.pinchStrength || 0) : 0;
       const isPinching = palmOk && (pos.isPinching || false);
 
       const size = 40 - s * 10;
-      ring.style.width       = `${size}px`;
-      ring.style.height      = `${size}px`;
+      ring.style.width = `${size}px`;
+      ring.style.height = `${size}px`;
       ring.style.borderColor = `rgba(${rc},${isPinching ? 0.8 + s * 0.2 : 0.75})`;
-      ring.style.boxShadow   = palmOk
+      ring.style.boxShadow = palmOk
         ? `0 0 ${20 + s * 20}px rgba(${rc},${0.6 + s * 0.3}), 0 0 ${40 + s * 40}px rgba(${rc},${0.3 + s * 0.2})`
         : 'none';
       ring.style.borderWidth = `${isPinching ? 3 + s * 2 : 3}px`;
-      ring.style.background  = `rgba(${rc},${palmOk ? 0.12 : 0.06})`;
+      ring.style.background = `rgba(${rc},${palmOk ? 0.12 : 0.06})`;
 
-      const dotSize      = palmOk ? 4 + s * 4 : 3;
-      dot.style.width    = `${dotSize}px`;
-      dot.style.height   = `${dotSize}px`;
-      dot.style.background   = `rgba(${dc},1)`;
-      dot.style.boxShadow    = palmOk ? `0 0 8px rgba(${dc},1)` : 'none';
+      const dotSize = palmOk ? 4 + s * 4 : 3;
+      dot.style.width = `${dotSize}px`;
+      dot.style.height = `${dotSize}px`;
+      dot.style.background = `rgba(${dc},1)`;
+      dot.style.boxShadow = palmOk ? `0 0 8px rgba(${dc},1)` : 'none';
     };
-
-    return () => {
-      if (window.__updateHandCursor) delete window.__updateHandCursor[handIndex];
-    };
+    return () => { if (window.__updateHandCursor) delete window.__updateHandCursor[handIndex]; };
   }, [handIndex]);
 
-  const borderRadius = isCircle ? '50%' : '6px';
+  return (
+    <div ref={cursorRef} className="live-cursor">
+      <div ref={ringRef} className={`live-cursor__ring ${isCircle ? 'live-cursor__ring--circle' : 'live-cursor__ring--square'}`} />
+      <div ref={dotRef} className="live-cursor__dot" />
+    </div>
+  );
+}
+
+function HandStatusDot({ status, index }) {
+  let dotColor, label;
+  if (!status.detected) { dotColor = '#ef4444'; label = `H${index + 1} —`; }
+  else if (!status.palmVisible) { dotColor = '#888'; label = `H${index + 1} back`; }
+  else if (status.isPinching) { dotColor = '#f59e0b'; label = `H${index + 1} pinch`; }
+  else { dotColor = `rgb(${ACTIVE_DOT})`; label = `H${index + 1} palm`; }
 
   return (
-    <div
-      ref={cursorRef}
-      style={{
-        position: 'fixed', top: 0, left: 0,
-        width: 40, height: 40,
-        pointerEvents: 'none',
-        zIndex: 999999,
-        opacity: 0,
-        willChange: 'transform, opacity',
-      }}
-    >
-      <div
-        ref={ringRef}
-        style={{
-          position: 'absolute',
-          top: '50%', left: '50%',
-          transform: 'translate(-50%, -50%)',
-          width: 40, height: 40,
-          borderRadius,
-          border: `3px solid rgba(${ACTIVE_COLOR},0.75)`,
-          background: `rgba(${ACTIVE_COLOR},0.12)`,
-          boxShadow: `0 0 20px rgba(${ACTIVE_COLOR},0.6), 0 0 40px rgba(${ACTIVE_COLOR},0.3)`,
-          transition: 'width 0.06s, height 0.06s, box-shadow 0.06s, border-color 0.06s, background 0.12s',
-        }}
-      />
-      <div
-        ref={dotRef}
-        style={{
-          position: 'absolute',
-          top: '50%', left: '50%',
-          transform: 'translate(-50%, -50%)',
-          width: 4, height: 4,
-          borderRadius: '50%',
-          background: `rgba(${ACTIVE_DOT},1)`,
-          boxShadow: `0 0 8px rgba(${ACTIVE_DOT},1)`,
-          transition: 'width 0.06s, height 0.06s, background 0.12s',
-        }}
-      />
+    <div className="status-bar__entry">
+      <div className="status-bar__dot" style={{ background: dotColor, boxShadow: `0 0 8px ${dotColor}` }} />
+      <span className="status-bar__label">{label}</span>
+    </div>
+  );
+}
+
+function StatusBar({ statuses }) {
+  return (
+    <div className="status-bar">
+      {statuses.map((s, i) => <HandStatusDot key={i} status={s} index={i} />)}
     </div>
   );
 }
@@ -121,78 +290,47 @@ export default function IndexPage() {
     { detected: false, isPinching: false, palmVisible: false },
     { detected: false, isPinching: false, palmVisible: false },
   ]);
+  const [handPositions, setHandPositions] = useState({});
+
+  const spawnRef = useRef(null);
+
+  const handleSpawnWidget = useCallback((widgetId) => {
+    spawnRef.current?.(widgetId);
+  }, []);
 
   const handleHandPosition = useCallback((pos) => {
     const idx = pos.handIndex ?? 0;
     window.__updateHandCursor?.[idx]?.(pos);
+    setHandPositions(prev => ({ ...prev, [idx]: pos }));
     setStatuses(prev => {
       const next = [...prev];
       next[idx] = {
-        detected:     pos.detected,
-        isPinching:   pos.isPinching   || false,
-        palmVisible:  pos.palmVisible  ?? true,
+        detected: pos.detected,
+        isPinching: pos.isPinching || false,
+        palmVisible: pos.palmVisible ?? true,
       };
       return next;
     });
   }, []);
 
   return (
-    <div
-      style={{
-        width: '100vw', height: '100vh',
-        background: '#000',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontFamily: "'Courier New', monospace",
-        overflow: 'hidden', position: 'relative',
-        cursor: 'none',
-      }}
-    >
-      <div
-        style={{
-          position: 'absolute', top: 24, left: '50%',
-          transform: 'translateX(-50%)',
-          display: 'flex', alignItems: 'center', gap: 16,
-          background: 'rgba(255,255,255,0.04)',
-          border: '1px solid rgba(255,255,255,0.08)',
-          borderRadius: 999, padding: '6px 20px',
-          zIndex: 50,
-        }}
-      >
-        {statuses.map((s, i) => {
-          let dotColor, glowColor, label;
-          if (!s.detected) {
-            dotColor = '#ef4444'; glowColor = '#ef4444'; label = `H${i+1} —`;
-          } else if (!s.palmVisible) {
-            dotColor = '#888'; glowColor = '#888'; label = `H${i+1} back`;
-          } else if (s.isPinching) {
-            dotColor = '#f59e0b'; glowColor = '#f59e0b'; label = `H${i+1} pinch`;
-          } else {
-            dotColor = `rgb(${ACTIVE_DOT})`; glowColor = `rgb(${ACTIVE_DOT})`; label = `H${i+1} palm`;
-          }
-          return (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{
-                width: 8, height: 8, borderRadius: '50%',
-                background: dotColor,
-                boxShadow: `0 0 8px ${glowColor}`,
-                transition: 'background 0.2s, box-shadow 0.2s',
-              }} />
-              <span style={{
-                fontSize: 11, letterSpacing: '0.12em',
-                color: 'rgba(255,255,255,0.45)',
-                textTransform: 'uppercase',
-              }}>
-                {label}
-              </span>
-            </div>
-          );
-        })}
-      </div>
+    <div className="index-page">
+      <StatusBar statuses={statuses} />
 
       <HandTrackingService
         settings={defaultSettings}
         enabled={true}
         onHandPosition={handleHandPosition}
+      />
+
+      <HandNav
+        handPositions={handPositions}
+        onSpawnWidget={handleSpawnWidget}
+      />
+
+      <WidgetDragManager
+        handPositions={handPositions}
+        spawnRef={spawnRef}
       />
 
       <LiveCursor handIndex={0} />
