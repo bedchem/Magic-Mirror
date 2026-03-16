@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import "/src/styles/NewsWidget.css";
 
 const API_URL = "https://www.tagesschau.de/api2u/news";
@@ -38,9 +38,12 @@ function ArticleCard({ article }) {
   );
 }
 
-export default function NewsWidget() {
+export default function NewsWidget({ handPositions = {} }) {
   const [articles, setArticles] = useState([]);
   const [status, setStatus] = useState("loading");
+  const listRef = useRef(null);
+  const prevYRef = useRef({});
+  const activeScrollRef = useRef({});
 
   const fetchNews = useCallback(async () => {
     setStatus("loading");
@@ -73,6 +76,56 @@ export default function NewsWidget() {
     fetchNews();
   }, [fetchNews]);
 
+  useEffect(() => {
+    for (const pos of Object.values(handPositions)) {
+      const {
+        handIndex,
+        detected,
+        palmVisible,
+        isPinching,
+        pinchMidX,
+        pinchMidY,
+        x,
+        y,
+      } = pos;
+
+      const tx = x ?? pinchMidX;
+      const ty = y ?? pinchMidY;
+
+      if (!detected || palmVisible === false || !isPinching) {
+        activeScrollRef.current[handIndex] = false;
+        prevYRef.current[handIndex] = null;
+        continue;
+      }
+
+      if (!Number.isFinite(tx) || !Number.isFinite(ty)) continue;
+
+      const cx = Math.max(0, Math.min(window.innerWidth - 1, tx));
+      const cy = Math.max(0, Math.min(window.innerHeight - 1, ty));
+      const els = document.elementsFromPoint(cx, cy);
+      const overList = els.some((el) => el === listRef.current || el.closest?.(".nw-list"));
+
+      if (!activeScrollRef.current[handIndex]) {
+        if (!overList) {
+          prevYRef.current[handIndex] = null;
+          continue;
+        }
+        activeScrollRef.current[handIndex] = true;
+        prevYRef.current[handIndex] = ty;
+        continue;
+      }
+
+      const py = prevYRef.current[handIndex];
+      if (py != null && listRef.current) {
+        const delta = py - ty;
+        if (Math.abs(delta) > 0.8) {
+          listRef.current.scrollTop += delta;
+        }
+      }
+      prevYRef.current[handIndex] = ty;
+    }
+  }, [handPositions, status]);
+
   return (
     <div className="nw-widget">
       <div className="nw-header">
@@ -100,7 +153,7 @@ export default function NewsWidget() {
       )}
 
       {status === "success" && (
-        <div className="nw-list">
+        <div className="nw-list" ref={listRef}>
           {articles.map((article, i) => (
             <ArticleCard key={i} article={article} />
           ))}

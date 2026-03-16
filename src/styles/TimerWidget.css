@@ -1,7 +1,6 @@
 .t-app {
   width: 500px;
   height: 500px;
-  font-family: -apple-system, 'SF Pro Display', 'Helvetica Neue', sans-serif;
   color: #fff;
   position: relative;
   overflow: hidden;
@@ -41,30 +40,14 @@
   padding: 22px 28px 14px;
 }
 
-.t-bar-cancel {
-  background: none;
-  border: none;
-  color: #0a84ff;
-  font-size: 17px;
-  font-family: inherit;
-  cursor: pointer;
-  padding: 0;
-}
-
-.t-bar-title {
-  font-size: 17px;
-  font-weight: 600;
-}
 
 .t-bar-start {
   background: none;
   border: none;
   font-size: 17px;
   font-weight: 600;
-  font-family: inherit;
   cursor: pointer;
   color: #0a84ff;
-  padding: 0;
 }
 
 .t-bar-start:disabled {
@@ -87,7 +70,6 @@
   transform: translateX(-50%);
   width: 80%;
   height: 40px;
-  background: rgba(255, 255, 255, 0.1);
   border-radius: 10px;
   pointer-events: none;
   z-index: 4;
@@ -150,7 +132,6 @@
   left: 0;
   right: 0;
   height: 80px;
-  background: linear-gradient(to bottom, #000, transparent);
   pointer-events: none;
   z-index: 3;
 }
@@ -161,7 +142,6 @@
   left: 0;
   right: 0;
   height: 80px;
-  background: linear-gradient(to top, #000, transparent);
   pointer-events: none;
   z-index: 3;
 }
@@ -201,7 +181,6 @@
   font-weight: 100;
   letter-spacing: -3px;
   fill: #fff;
-  font-family: -apple-system, 'SF Pro Display', 'Helvetica Neue', sans-serif;
 }
 
 .t-btns {
@@ -218,14 +197,18 @@
   border: none;
   font-size: 17px;
   font-weight: 500;
-  font-family: inherit;
   cursor: pointer;
-  transition: opacity 0.1s, transform 0.1s;
+  transition: opacity 0.08s, transform 0.08s;
 }
 
 .t-btn:active {
-  opacity: 0.65;
-  transform: scale(0.93);
+  opacity: 0.6;
+  transform: scale(0.92);
+}
+
+.t-btn.hand-active {
+  opacity: 0.6;
+  transform: scale(0.92);
 }
 
 .t-btn-cancel {
@@ -252,12 +235,9 @@
 }
 
 @keyframes t-blink {
-
-  0%,
-  100% {
+  0%, 100% {
     opacity: 1;
   }
-
   50% {
     opacity: 0.3;
   }

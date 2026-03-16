@@ -27,7 +27,7 @@ function TrashZone({ active, isOver }) {
     );
 }
 
-function DraggableWidget({ instance, onMouseDragStart, isBeingDragged }) {
+function DraggableWidget({ instance, onMouseDragStart, isBeingDragged, handPositions }) {
     const entry = WIDGET_REGISTRY.find(w => w.id === instance.widgetId);
     if (!entry) return null;
     const { Component, label } = entry;
@@ -48,7 +48,7 @@ function DraggableWidget({ instance, onMouseDragStart, isBeingDragged }) {
                 </div>
             </div>
             <div className="draggable-widget__content">
-                <Component />
+                <Component handPositions={handPositions} />
             </div>
         </div>
     );
@@ -159,6 +159,22 @@ export default function WidgetDragManager({ handPositions = {}, spawnRef }) {
             updateHover(hx, hy);
 
             if (isPinching) {
+                const els = document.elementsFromPoint(hx, hy);
+                
+                const drumEl = els.find(el => 
+                    el.hasAttribute?.('data-drum-index') || 
+                    el.closest?.('[data-drum-index]') ||
+                    el.classList?.contains('hand-drum-target') ||
+                    el.closest?.('.hand-drum-target') ||
+                    el.classList?.contains('t-drum-col') ||
+                    el.closest?.('.t-drum-col')
+                );
+                
+                if (drumEl) {
+                    wasPinching.current[handIndex] = true;
+                    continue;
+                }
+
                 if (handDragRef.current?.handIndex === handIndex) {
                     const { instanceId, offsetX, offsetY } = handDragRef.current;
                     moveWidget(instanceId, hx - offsetX, hy - offsetY);
@@ -212,6 +228,7 @@ export default function WidgetDragManager({ handPositions = {}, spawnRef }) {
                     instance={instance}
                     onMouseDragStart={handleMouseDragStart}
                     isBeingDragged={dragging?.instanceId === instance.id}
+                    handPositions={handPositions}
                 />
             ))}
             <TrashZone active={isDragging} isOver={trashOver} />

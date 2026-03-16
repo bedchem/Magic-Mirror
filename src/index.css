@@ -1,5 +1,4 @@
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
@@ -26,7 +25,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: 'Courier New', monospace;
+  font-family: 'Outfit', sans-serif;
   overflow: hidden;
   position: relative;
   cursor: none;
