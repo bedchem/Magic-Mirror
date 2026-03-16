@@ -1,3 +1,5 @@
+
+
 .nw-widget {
     max-width: 640px;
     margin: 0 auto;
@@ -5,7 +7,9 @@
     color: #fffcfc;
     max-height: 640px;
 }
-
+::-webkit-scrollbar {
+    display: none;
+}
 .nw-header {
     display: flex;
     align-items: center;
