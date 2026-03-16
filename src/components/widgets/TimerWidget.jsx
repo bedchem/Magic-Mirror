@@ -384,11 +384,6 @@ export default function TimerWidget({ handPositions = {} }) {
       </div>
 
       <div className={runClass}>
-        <div className="t-bar">
-          <span style={{ width: 80 }} />
-          <span className="t-bar-title">Timer</span>
-          <span style={{ width: 80 }} />
-        </div>
         <div className="t-ring-area">
           <svg width="320" height="320" viewBox="0 0 320 320">
             <circle cx="160" cy="160" r="140" fill="none" stroke="#1a1a1a" strokeWidth="9" />
