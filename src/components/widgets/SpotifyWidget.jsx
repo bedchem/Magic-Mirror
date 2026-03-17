@@ -1,4 +1,6 @@
-﻿import { useEffect, useRef, useState } from 'react';
+﻿// for this to work without mouse: & "C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe" --autoplay-policy=no-user-gesture-required --kiosk http://localhost:5173
+
+import { useEffect, useRef, useState } from 'react';
 import '/src/styles/SpotifyWidget.css';
 
 export default function SpotifyWidget() {
