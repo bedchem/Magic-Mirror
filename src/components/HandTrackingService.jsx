@@ -29,11 +29,11 @@ const PRIMARY_SLOT = 0;
 const LEFT_HAND_INDEX = 0;
 const RIGHT_HAND_INDEX = 1;
 
-const LOCK_FRAMES = 45;
+const LOCK_FRAMES = 12;
 
 const TENTATIVE_ABSENCE_FRAMES = 6;
 
-const LOCKED_ABSENCE_FRAMES = 90;
+const LOCKED_ABSENCE_FRAMES = 20;
 
 const CONTINUITY_THRESHOLD = 0.18;
 
@@ -421,7 +421,7 @@ const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings
 
         if (prev) {
           const moveDist = Math.hypot(ax - prev.x, ay - prev.y);
-          const deadzone = 0.008 / Math.max(sensitivityRef.current, 0.25);
+          const deadzone = 0.01 / Math.max(sensitivityRef.current, 0.25);
           if (moveDist < deadzone) {
             sx = prev.x; sy = prev.y;
           } else if (sm > 0) {

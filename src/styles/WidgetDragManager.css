@@ -1,4 +1,3 @@
-
 .widget-drag-manager {
     pointer-events: none;
 }
@@ -55,7 +54,18 @@
     text-transform: uppercase;
 }
 
+.draggable-widget__dots {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+}
 
+.draggable-widget__dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.15);
+}
 
 .draggable-widget__content {
     background: rgba(16, 16, 24, 0.95);
@@ -126,4 +136,12 @@
 
 .trash-zone__label--over {
     color: #ef4444;
+}
+
+button.hand-hover {
+    outline: 2px solid rgba(99, 102, 241, 0.8) !important;
+    outline-offset: 2px !important;
+    background-color: rgba(99, 102, 241, 0.18) !important;
+    color: #a5b4fc !important;
+    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15), 0 0 12px rgba(99, 102, 241, 0.3) !important;
 }

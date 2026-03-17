@@ -1,3 +1,4 @@
+// server.js
 import dotenv from 'dotenv';
 import express from 'express';
 import multer from 'multer';
@@ -5,15 +6,16 @@ import fetch from 'node-fetch';
 import cors from 'cors';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { initDB } from './src/utils/db.js';
+import { addSpotifyLink, getSpotifyLinks } from './src/utils/db.js';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: resolve(__dirname, '.env') });
+dotenv.config({ path: resolve(dirname(fileURLToPath(import.meta.url)), '.env') });
+
+await initDB();
 
 const app = express();
 const upload = multer({
-  limits: {
-    fileSize: 10 * 1024 * 1024,
-  }
+  limits: { fileSize: 10 * 1024 * 1024 }
 });
 
 const FALLBACK_COMPLIMENTS = [
@@ -55,13 +57,93 @@ function getSymbolsFromEnv() {
     .filter(Boolean);
 }
 
+function extractSpotifyTrackId(url = '') {
+  if (!url) return null;
+
+  const patterns = [
+    /(?:open\.spotify\.com\/)(?:embed\/)?track\/([a-zA-Z0-9]+)/,
+    /spotify:track:([a-zA-Z0-9]+)/,
+  ];
+
+  for (const pattern of patterns) {
+    const match = String(url).match(pattern);
+    if (match?.[1]) return match[1];
+  }
+
+  return null;
+}
+
+function buildSpotifyMetadataFallback(url) {
+  return { url, title: 'Unbekannt', artist: '', cover: null };
+}
+
+async function fetchSpotifyTrackMetadata(url) {
+  const trackId = extractSpotifyTrackId(url);
+  const canonicalUrl = trackId ? `https://open.spotify.com/track/${trackId}` : url;
+  const oembedUrls = [
+    `https://open.spotify.com/oembed?url=${encodeURIComponent(canonicalUrl)}`,
+    `https://embed.spotify.com/oembed/?url=${encodeURIComponent(canonicalUrl)}`,
+  ];
+
+  for (const oembedUrl of oembedUrls) {
+    try {
+      const oembedRes = await fetch(oembedUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
+          'Accept-Language': 'en-US,en;q=0.9'
+        }
+      });
+
+      if (oembedRes.ok) {
+        const data = await oembedRes.json();
+        const title = data?.title || 'Unbekannt';
+        const artist = data?.author_name || '';
+        const cover = data?.thumbnail_url || null;
+
+        return { url, title, artist, cover };
+      }
+    } catch (error) {
+      console.error('Spotify oEmbed Fehler:', error.message);
+    }
+  }
+
+  if (!trackId) {
+    return buildSpotifyMetadataFallback(url);
+  }
+
+  try {
+    const pageRes = await fetch(`https://open.spotify.com/track/${trackId}`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
+        'Accept-Language': 'en-US,en;q=0.9'
+      }
+    });
+
+    if (!pageRes.ok) {
+      throw new Error(`Spotify page status ${pageRes.status}`);
+    }
+
+    const html = await pageRes.text();
+    const title = html.match(/<meta property="og:title" content="([^"]+)"/)?.[1] ?? 'Unbekannt';
+    const cover = html.match(/<meta property="og:image" content="([^"]+)"/)?.[1] ?? null;
+    const description = html.match(/<meta property="og:description" content="([^"]+)"/)?.[1] ?? '';
+    const descriptionParts = description.split(' · ');
+    const artist = descriptionParts[1] ?? description.split(' - ')[1] ?? '';
+
+    return { url, title, artist, cover };
+  } catch (error) {
+    console.error('Spotify Fallback Fehler:', error.message);
+    return buildSpotifyMetadataFallback(url);
+  }
+}
+
 app.get('/api/test', (req, res) => {
   res.send('Server is running!');
 });
 
 app.post('/api/compliment', upload.single('image'), async (req, res) => {
   console.log('Received compliment request');
-  
+
   if (!req.file) {
     console.error('No image file in request');
     return res.status(400).send('No image uploaded');
@@ -83,11 +165,11 @@ app.post('/api/compliment', upload.single('image'), async (req, res) => {
         messages: [
           {
             role: 'system',
-            content: 'You give very short compliments (max 1 sentence). Be natural.'
+            content: 'You give very short compliments (max 1 sentence 15 words). Be natural.'
           },
           {
             role: 'user',
-            content: 'Give a short compliment about this person. based on what they are wearing tell them the colors be direct and honest tell them if they are ugly. Be Flirty. Talk like a human not too much like a robot. Very short sentences. Be direct and honest. Do not be afraid to tell them if they are ugly. Be flirty. Talk like a human, not too much like a robot.',
+            content: 'Give a short compliment about this person. based on what they are wearing tell them the colors be direct and honest tell them if they are ugly. Talk like a human not too much like a robot. Very short sentences. Be direct and honest. Do not be afraid to tell them if they are ugly. Be flirty. Talk like a human, not too much like a robot. Dont make weird references like coffeshops, dreamy or anything. Be very Flirty.',
             images: [base64]
           }
         ],
@@ -107,10 +189,10 @@ app.post('/api/compliment', upload.single('image'), async (req, res) => {
 
     const data = await ollamaRes.json();
     console.log('Ollama response received');
-    
+
     const compliment = data?.message?.content || 'You look great :)';
     console.log('Sending compliment:', compliment);
-    
+
     res.send(compliment);
 
   } catch (err) {
@@ -184,6 +266,34 @@ app.get('/stocks/quotes', async (req, res) => {
   } catch (error) {
     console.error('Finnhub Quote Fehler:', error.message);
     res.status(500).json({ error: 'Quotes konnten nicht geladen werden' });
+  }
+});
+
+app.get('/api/spotify-links', async (req, res) => {
+  try {
+    const links = await getSpotifyLinks();
+
+    const enriched = await Promise.all(
+      links.map(async (link) => fetchSpotifyTrackMetadata(link.url))
+    );
+
+    res.json(enriched);
+  } catch (err) {
+    console.error('DB Fehler:', err);
+    res.status(500).json({ error: 'Kann Spotify Links nicht laden' });
+  }
+});
+
+app.post('/api/spotify-links', express.json(), async (req, res) => {
+  const { url } = req.body;
+  if (!url) return res.status(400).json({ error: 'Keine URL angegeben' });
+
+  try {
+    await addSpotifyLink(url);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('DB Fehler:', err);
+    res.status(500).json({ error: 'Kann Spotify Link nicht speichern' });
   }
 });
 

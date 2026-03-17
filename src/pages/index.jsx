@@ -3,9 +3,11 @@ import HandTrackingService from '../components/HandTrackingService';
 import WidgetDragManager from '../components/WidgetDragManager';
 import notificationImage from '../assets/notification.png';
 
+const DEBUG = true;
+
 const defaultSettings = {
   enabled: true,
-  showPreview: true,
+  showPreview: DEBUG,
   cameraOrientation: 'landscape',
   cameraPosition: 'top',
   smoothing: 0.3,
@@ -125,6 +127,13 @@ const NAV_ITEMS = [
     ),
   },
 ];
+
+const MIN_INTERVAL = 3 * 60 * 1000;
+const MAX_INTERVAL = 10 * 60 * 1000;
+
+function getRandomInterval() {
+  return Math.floor(Math.random() * (MAX_INTERVAL - MIN_INTERVAL + 1)) + MIN_INTERVAL;
+}
 
 function HandNav({ handPositions, onSpawnWidget }) {
   const [expanded, setExpanded] = useState(false);
@@ -303,48 +312,33 @@ export default function IndexPage() {
   ]);
   const [handPositions, setHandPositions] = useState({});
   const [compliment, setCompliment] = useState('');
+  const [complimentLoopStarted, setComplimentLoopStarted] = useState(false);
   const videoRef = useRef(null);
   const complimentRequestedRef = useRef(false);
-
+  const intervalRef = useRef(null);
   const spawnRef = useRef(null);
 
   const takeComplimentPhoto = useCallback(async () => {
     const video = videoRef.current;
-    if (!video) {
-      console.error('Video not ready');
-      return;
-    }
+    if (!video) return;
 
     try {
       const canvas = document.createElement('canvas');
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
-
       const ctx = canvas.getContext('2d');
       ctx.drawImage(video, 0, 0);
 
       canvas.toBlob(async (blob) => {
-        if (!blob) {
-          console.error('Failed to create blob');
-          return;
-        }
-
+        if (!blob) return;
         const formData = new FormData();
         formData.append('image', blob, 'webcam.jpg');
 
         try {
-          const res = await fetch('http://localhost:3000/api/compliment', {
-            method: 'POST',
-            body: formData,
-          });
-
-          if (!res.ok) {
-            throw new Error(`HTTP error! status: ${res.status}`);
-          }
-
+          const res = await fetch('http://localhost:3000/api/compliment', { method: 'POST', body: formData });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
           const text = await res.text();
           setCompliment(text);
-
           setTimeout(() => setCompliment(''), 10000);
         } catch (e) {
           console.error('Compliment fetch error:', e);
@@ -355,16 +349,31 @@ export default function IndexPage() {
     }
   }, []);
 
+  useEffect(() => {
+    if (!complimentLoopStarted) return;
+
+    const scheduleNext = () => {
+      const interval = getRandomInterval();
+      intervalRef.current = setTimeout(async () => {
+        await takeComplimentPhoto();
+        scheduleNext();
+      }, interval);
+    };
+
+    scheduleNext();
+
+    return () => clearTimeout(intervalRef.current);
+  }, [complimentLoopStarted, takeComplimentPhoto]);
+
   const handleTrackingVideoReady = useCallback((videoEl) => {
     if (!videoEl) return;
-
     videoRef.current = videoEl;
-    if (complimentRequestedRef.current) return;
 
-    complimentRequestedRef.current = true;
-    setTimeout(() => {
-      takeComplimentPhoto();
-    }, 1500);
+    if (!complimentRequestedRef.current) {
+      complimentRequestedRef.current = true;
+      setComplimentLoopStarted(true);
+      setTimeout(() => takeComplimentPhoto(), 1500);
+    }
   }, [takeComplimentPhoto]);
 
   const handleSpawnWidget = useCallback((widgetId) => {
@@ -388,7 +397,7 @@ export default function IndexPage() {
 
   return (
     <div className="index-page">
-      <StatusBar statuses={statuses} />
+      {DEBUG && <StatusBar statuses={statuses} />}
 
       <HandTrackingService
         settings={defaultSettings}
@@ -411,13 +420,13 @@ export default function IndexPage() {
       <LiveCursor handIndex={1} />
 
       {compliment && (
-        <div className="compliment-popup" role="status" aria-live="polite">
+        <div className="compliment-popup" rsole="status" aria-live="polite">
           <div className="card">
             <img className="img" src={notificationImage} alt="Notification" />
             <div className="textBox">
               <div className="textContent">
                 <p className="h1">Thomas Johann Sieder</p>
-                <span className="span">NOW</span>
+                <span className="span">now</span>
               </div>
               <p className="p">{compliment}</p>
             </div>
