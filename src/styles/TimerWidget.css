@@ -35,14 +35,17 @@
 .t-bar {
   width: 100%;
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
   padding: 22px 28px 14px;
 }
 
 
 .t-bar-start {
-  background: none;
+  background-color: #1e3557;
+  width: 80px;
+  height: 40px;
+  border-radius: 8px;
   border: none;
   font-size: 17px;
   font-weight: 600;
@@ -52,6 +55,7 @@
 
 .t-bar-start:disabled {
   color: rgba(10, 132, 255, 0.3);
+  background-color: #1e35579f;
   cursor: default;
 }
 
@@ -192,8 +196,8 @@
 
 .t-btn {
   width: 80px;
-  height: 80px;
-  border-radius: 50%;
+  height: 40px;
+  border-radius: 8px;
   border: none;
   font-size: 17px;
   font-weight: 500;
@@ -226,19 +230,12 @@
   color: #fff;
 }
 
-.t-done-label {
-  font-size: 17px;
-  font-weight: 600;
-  color: #0a84ff;
-  padding-bottom: 10px;
-  animation: t-blink 1s ease-in-out infinite;
+
+.t-ring-time.done {
+  animation: t-time-blink 2s ease-in-out infinite;
 }
 
-@keyframes t-blink {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.3;
-  }
+@keyframes t-time-blink {
+  0%, 100% { fill: #ff675f; }
+  50%       { fill: #ffcdcd; }
 }

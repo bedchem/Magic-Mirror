@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import HandTrackingService from '../components/HandTrackingService';
 import WidgetDragManager from '../components/WidgetDragManager';
+import notificationImage from '../assets/notification.png';
 
 const defaultSettings = {
   enabled: true,
@@ -75,6 +76,7 @@ const NAV_ITEMS = [
       </svg>
     ),
   },
+  
   {
     label: 'Stocks',
     widgetId: 'StocksWidget',
@@ -99,6 +101,16 @@ const NAV_ITEMS = [
         <line x1="7" y1="12" x2="17" y2="12" />
         <line x1="7" y1="16" x2="13" y2="16" />
       </svg>
+    ),
+  },
+    {
+    label: 'Zeichnen',
+    widgetId: 'ZeichnenWidget',
+    icon: (
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="30" height="30">
+  <path d="M12 20h9"/>
+  <path d="M16.5 3.5a2.1 2.1 0 113 3L7 19l-4 1 1-4 12.5-12.5z"/>
+</svg>
     ),
   },
   {
@@ -215,7 +227,6 @@ function LiveCursor({ handIndex }) {
   const cursorRef = useRef(null);
   const dotRef = useRef(null);
   const ringRef = useRef(null);
-  const isCircle = handIndex === 0;
 
   useEffect(() => {
     if (!window.__updateHandCursor) window.__updateHandCursor = {};
@@ -256,7 +267,7 @@ function LiveCursor({ handIndex }) {
 
   return (
     <div ref={cursorRef} className="live-cursor">
-      <div ref={ringRef} className={`live-cursor__ring ${isCircle ? 'live-cursor__ring--circle' : 'live-cursor__ring--square'}`} />
+      <div ref={ringRef} className="live-cursor__ring live-cursor__ring--circle" />
       <div ref={dotRef} className="live-cursor__dot" />
     </div>
   );
@@ -291,8 +302,70 @@ export default function IndexPage() {
     { detected: false, isPinching: false, palmVisible: false },
   ]);
   const [handPositions, setHandPositions] = useState({});
+  const [compliment, setCompliment] = useState('');
+  const videoRef = useRef(null);
+  const complimentRequestedRef = useRef(false);
 
   const spawnRef = useRef(null);
+
+  const takeComplimentPhoto = useCallback(async () => {
+    const video = videoRef.current;
+    if (!video) {
+      console.error('Video not ready');
+      return;
+    }
+
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0);
+
+      canvas.toBlob(async (blob) => {
+        if (!blob) {
+          console.error('Failed to create blob');
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append('image', blob, 'webcam.jpg');
+
+        try {
+          const res = await fetch('http://localhost:3000/api/compliment', {
+            method: 'POST',
+            body: formData,
+          });
+
+          if (!res.ok) {
+            throw new Error(`HTTP error! status: ${res.status}`);
+          }
+
+          const text = await res.text();
+          setCompliment(text);
+
+          setTimeout(() => setCompliment(''), 10000);
+        } catch (e) {
+          console.error('Compliment fetch error:', e);
+        }
+      }, 'image/jpeg', 0.9);
+    } catch (e) {
+      console.error('Canvas error:', e);
+    }
+  }, []);
+
+  const handleTrackingVideoReady = useCallback((videoEl) => {
+    if (!videoEl) return;
+
+    videoRef.current = videoEl;
+    if (complimentRequestedRef.current) return;
+
+    complimentRequestedRef.current = true;
+    setTimeout(() => {
+      takeComplimentPhoto();
+    }, 1500);
+  }, [takeComplimentPhoto]);
 
   const handleSpawnWidget = useCallback((widgetId) => {
     spawnRef.current?.(widgetId);
@@ -321,6 +394,7 @@ export default function IndexPage() {
         settings={defaultSettings}
         enabled={true}
         onHandPosition={handleHandPosition}
+        onVideoReady={handleTrackingVideoReady}
       />
 
       <HandNav
@@ -335,6 +409,21 @@ export default function IndexPage() {
 
       <LiveCursor handIndex={0} />
       <LiveCursor handIndex={1} />
+
+      {compliment && (
+        <div className="compliment-popup" role="status" aria-live="polite">
+          <div className="card">
+            <img className="img" src={notificationImage} alt="Notification" />
+            <div className="textBox">
+              <div className="textContent">
+                <p className="h1">Thomas Johann Sieder</p>
+                <span className="span">NOW</span>
+              </div>
+              <p className="p">{compliment}</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

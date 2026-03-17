@@ -1,36 +1,93 @@
+.stocks-widget {
+    width: 360px;
+    min-height: 210px;
+}
+
+.stocks-controls {
+    display: block;
+    margin: 4px 0 10px;
+    overflow: hidden;
+}
+
+.stocks-timeframe-view {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    justify-content: center;
+}
+
+.stocks-chip {
+    border: none;
+    background: rgba(5, 35, 75, 0.932);
+    color: rgba(255, 255, 255, 0.9);
+    border-radius: 999px;
+    padding: 12px 20px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+}
+
+.stocks-chip[data-active="true"],
+.stocks-chip.hand-hover {
+    background: rgba(36, 118, 240, 0.712);
+    border: none;
+    color: #dceaff;
+}
+
 .stocks-inner {
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: 6px;
     padding: 2px 0;
+    min-height: 130px;
+}
+
+.stocks-list {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.stocks-list-scroll {
+    max-height: 130px;
+    overflow-y: auto;
+    padding-right: 4px;
+    scrollbar-width: none;
+}
+
+.stocks-list-scroll::-webkit-scrollbar {
+    display: none;
 }
 
 .stocks-row {
     display: grid;
     grid-template-columns: 1fr auto auto;
     align-items: center;
-    gap: 6px;
+    gap: 10px;
+    padding: 3px 0;
 }
 
 .stocks-ticker {
-    font-size: 0.65rem;
+    font-size: 0.8rem;
     font-weight: 700;
     letter-spacing: 0.04em;
     opacity: 0.9;
 }
 
 .stocks-price {
-    font-size: 0.65rem;
+    font-size: 0.78rem;
     font-weight: 600;
     text-align: right;
     color: var(--text-primary, #fff);
 }
 
 .stocks-change {
-    font-size: 0.62rem;
+    font-size: 0.74rem;
     font-weight: 600;
     text-align: right;
-    min-width: 52px;
+    min-width: 70px;
 }
 
 .stocks-change.up {
@@ -43,7 +100,7 @@
 
 .stocks-loading,
 .stocks-error {
-    font-size: 0.65rem;
+    font-size: 0.75rem;
     opacity: 0.5;
     padding: 2px 0;
 }
@@ -53,8 +110,14 @@
 }
 
 .stocks-hint {
-    font-size: 0.55rem;
+    font-size: 0.64rem;
     opacity: 0.3;
-    margin-top: 2px;
     letter-spacing: 0.04em;
+}
+
+.stocks-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 2px;
 }

@@ -1,0 +1,159 @@
+.spotify-widget {
+    width: 340px;
+    height: 200px;
+    background: linear-gradient(145deg, #1a1a1a 0%, #232323 100%);
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.6);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    display: flex;
+    align-items: center;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.widget-content {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.song-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.song-title {
+    color: #ffffff;
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.song-artist {
+    color: #a7a7a7;
+    font-size: 14px;
+    font-weight: 400;
+}
+
+.time-info {
+    display: flex;
+    justify-content: space-between;
+    color: #a7a7a7;
+    font-size: 12px;
+    font-weight: 400;
+    margin: 4px 0 2px 0;
+}
+
+.controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 24px;
+    margin: 6px 0;
+}
+
+.control-btn {
+    background: none;
+    border: none;
+    color: #ffffff;
+    cursor: pointer;
+    padding: 0;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.9;
+}
+
+.control-btn.play {
+    transform: scale(1.1);
+}
+
+.control-btn:hover {
+    opacity: 1;
+    color: #1ed760;
+}
+
+.control-btn:active {
+    transform: scale(0.95);
+}
+
+.volume-control {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 2px 0;
+}
+
+.volume-icon {
+    color: #a7a7a7;
+    cursor: pointer;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.volume-icon:hover {
+    color: #1ed760;
+}
+
+.volume-slider {
+    flex: 1;
+    height: 5px;
+    background: #3e3e3e;
+    border-radius: 3px;
+    overflow: hidden;
+    cursor: pointer;
+}
+
+.volume-progress {
+    height: 100%;
+    background: #1ed760;
+    border-radius: 3px;
+}
+
+.add-remove {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 6px;
+}
+
+.add-btn, .remove-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1.5px solid #a7a7a7;
+    background: transparent;
+    color: #a7a7a7;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0.8;
+}
+
+.add-btn:hover {
+    border-color: #1ed760;
+    color: #1ed760;
+    opacity: 1;
+}
+
+.remove-btn:hover {
+    border-color: #ff4d4d;
+    color: #ff4d4d;
+    opacity: 1;
+}
+
+.add-btn:active, .remove-btn:active {
+    transform: scale(0.9);
+}
+
+.spotify-widget {
+    margin: 0 auto;
+}

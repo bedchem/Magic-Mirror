@@ -396,10 +396,9 @@ export default function TimerWidget({ handPositions = {} }) {
               transform="rotate(-90 160 160)"
               className="t-arc"
             />
-            <text x="160" y="175" textAnchor="middle" className="t-ring-time">{timeStr}</text>
+          <text x="160" y="175" textAnchor="middle" className={`t-ring-time${done ? ' done' : ''}`}>{timeStr}</text>
           </svg>
         </div>
-        {done && <div className="t-done-label">Zeit abgelaufen!</div>}
         <div className="t-btns">
           <button className="t-btn t-btn-cancel" onClick={cancel}>Abbr.</button>
           <button

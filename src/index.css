@@ -205,3 +205,86 @@ body {
   box-shadow: 0 0 8px rgba(147, 197, 253, 1);
   transition: width 0.06s, height 0.06s, background 0.12s;
 }
+
+.compliment-popup {
+  position: fixed;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 24px);
+  max-width: 620px;
+  z-index: 9999;
+}
+
+.compliment-popup .card {
+  width: 100%;
+  max-width: 490px;
+  min-height: 70px;
+  background: #262938;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  backdrop-filter: blur(10px);
+  transition: 0.5s ease-in-out;
+  margin: 0 auto;
+  padding: 8px 10px;
+}
+
+.compliment-popup .card:hover {
+  cursor: pointer;
+  transform: scale(1.05);
+}
+
+.compliment-popup .img {
+  width: 50px;
+  height: 50px;
+  margin-left: 2px;
+  border-radius: 10px;
+  object-fit: cover;
+  background: #10121a;
+  flex: 0 0 auto;
+}
+
+.compliment-popup .card:hover > .img {
+  transition: 0.5s ease-in-out;
+  filter: brightness(1.1) saturate(1.1);
+}
+
+.compliment-popup .textBox {
+  width: calc(100% - 70px);
+  margin-left: 10px;
+  color: white;
+  font-family: 'Poppins', sans-serif;
+}
+
+.compliment-popup .textContent {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.compliment-popup .span {
+  font-size: 10px;
+}
+
+.compliment-popup .h1 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.compliment-popup .p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  font-weight: 300;
+  line-height: 1.25;
+}
+
+@keyframes fadeInOut {
+  0% { opacity: 0; transform: translateX(-50%) translateY(-12px); }
+  10% { opacity: 1; transform: translateX(-50%) translateY(0); }
+  90% { opacity: 1; }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-8px); }
+}
