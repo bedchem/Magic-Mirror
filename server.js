@@ -8,6 +8,41 @@ import { fileURLToPath } from 'node:url';
 import { initDB } from './src/utils/db.js';
 import { addSpotifyLink, getSpotifyLinks } from './src/utils/db.js';
 import sharp from 'sharp';
+import { createRequire } from 'node:module';
+import crypto from 'crypto';
+
+const require = createRequire(import.meta.url);
+const { NFC } = require('nfc-pcsc');
+
+const nfc = new NFC();
+
+function generateCode(uid) {
+  return 'NFC-' + crypto
+    .createHash('sha256')
+    .update(uid)
+    .digest('hex')
+    .substring(0, 12)
+    .toUpperCase();
+}
+
+nfc.on('reader', (reader) => {
+  console.log(`✅ Reader: ${reader.reader.name}`);
+
+  reader.on('card', (card) => {
+    console.log('─'.repeat(40));
+    console.log(`UID:  ${card.uid}`);
+    console.log(`CODE: ${generateCode(card.uid)}`);
+    console.log(`TYP:  ${card.standard || card.type}`);
+    console.log('─'.repeat(40));
+  });
+
+  reader.on('card.off', () => console.log('Karte entfernt\n'));
+  reader.on('error', (err) => console.error('Reader Fehler:', err.message));
+});
+
+nfc.on('error', (err) => console.error('NFC Fehler:', err.message));
+
+console.log('Warte auf Karte...\n');
 
 dotenv.config({ path: resolve(dirname(fileURLToPath(import.meta.url)), '.env') });
 
@@ -308,4 +343,8 @@ app.listen(PORT, () => {
   console.log(`Compliment API: http://localhost:${PORT}/api/compliment`);
   console.log(`Weather API: http://localhost:${PORT}/weather`);
   console.log(`Stocks API: http://localhost:${PORT}/stocks/config`);
+  console.log(`✅ Reader: ${reader.reader.name}`);
+  console.log(`UID:  ${card.uid}`);
+  console.log(`CODE: ${generateCode(card.uid)}`);
+  console.log(`TYP:  ${card.standard || card.type}`);
 });
