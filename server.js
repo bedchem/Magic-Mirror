@@ -5,11 +5,9 @@ import fetch from 'node-fetch';
 import cors from 'cors';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { initDB } from './src/utils/db.js';
+import { initDB, getDB } from './src/utils/db.js';
 import { addSpotifyLink, getSpotifyLinks } from './src/utils/db.js';
 import sharp from 'sharp';
-import crypto from 'crypto';
-import { spawn } from 'node:child_process';
 import { upsertUser, getUser, saveWidgetPositions, getWidgetPositions, deleteWidgetPosition, setUserName } from './src/utils/db.js';
 
 dotenv.config({ path: resolve(dirname(fileURLToPath(import.meta.url)), '.env') });
@@ -18,41 +16,6 @@ await initDB();
 
 const app = express();
 const upload = multer({ limits: { fileSize: 10 * 1024 * 1024 } });
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
-function generateCode(uid) {
-  return 'NFC-' + crypto.createHash('sha256').update(uid).digest('hex').substring(0, 12).toUpperCase();
-}
-
-const nfcProcess = spawn('python3', [resolve(__dirname, 'nfc.py')]);
-
-let nfcBuffer = '';
-
-nfcProcess.stdout.on('data', (data) => {
-  nfcBuffer += data.toString();
-  const lines = nfcBuffer.split('\n');
-  nfcBuffer = lines.pop();
-  for (const line of lines) {
-    const uid = line.trim();
-    if (!uid) continue;
-    console.log('────────────────────────────────────────');
-    console.log(`UID:  ${uid}`);
-    console.log(`CODE: ${generateCode(uid)}`);
-    console.log('────────────────────────────────────────');
-  }
-});
-
-nfcProcess.stderr.on('data', (data) => {
-  const msg = data.toString().trim();
-  if (msg) console.error('NFC Fehler:', msg);
-});
-
-nfcProcess.on('close', (code) => {
-  console.warn(`NFC Prozess beendet (code ${code}) – RC522 nicht verfügbar.`);
-});
-
-console.log('NFC RC522: Warte auf Karte...');
 
 const FALLBACK_COMPLIMENTS = [
   'You have a great presence.',
@@ -161,7 +124,19 @@ async function fetchSpotifyTrackMetadata(url) {
     return buildSpotifyMetadataFallback(url);
   }
 }
-app.post('/api/users', express.json(), async (req, res) => {
+
+app.get('/api/users', async (req, res) => {
+  try {
+    const db = getDB();
+    const users = await db.all('SELECT * FROM users ORDER BY created_at DESC');
+    res.json(users);
+  } catch (err) {
+    console.error('Users get Fehler:', err);
+    res.status(500).json({ error: 'Kann Users nicht laden' });
+  }
+});
+
+app.post('/api/users', async (req, res) => {
   const { uuid } = req.body;
   if (!uuid) return res.status(400).json({ error: 'UUID fehlt' });
   try {
@@ -184,11 +159,10 @@ app.get('/api/users/:uuid', async (req, res) => {
   }
 });
 
-app.put('/api/users/:uuid/name', express.json(), async (req, res) => {
+app.put('/api/users/:uuid/name', async (req, res) => {
   const rawName = req.body?.name;
   const name = typeof rawName === 'string' ? rawName.trim() : '';
   if (!name) return res.status(400).json({ error: 'Name fehlt' });
-
   try {
     const user = await setUserName(req.params.uuid, name);
     if (!user) return res.status(404).json({ error: 'User nicht gefunden' });
@@ -209,7 +183,7 @@ app.get('/api/widget-positions/:uuid', async (req, res) => {
   }
 });
 
-app.post('/api/widget-positions/:uuid', express.json(), async (req, res) => {
+app.post('/api/widget-positions/:uuid', async (req, res) => {
   const { widgets } = req.body;
   if (!Array.isArray(widgets)) return res.status(400).json({ error: 'widgets Array fehlt' });
   try {
@@ -230,6 +204,7 @@ app.delete('/api/widget-positions/:uuid/:instanceId', async (req, res) => {
     res.status(500).json({ error: 'Kann Position nicht löschen' });
   }
 });
+
 app.get('/api/test', (req, res) => {
   res.send('Server is running!');
 });
@@ -357,7 +332,7 @@ app.get('/api/spotify-links', async (req, res) => {
   }
 });
 
-app.post('/api/spotify-links', express.json(), async (req, res) => {
+app.post('/api/spotify-links', async (req, res) => {
   const { url } = req.body;
   if (!url) return res.status(400).json({ error: 'Keine URL angegeben' });
   try {

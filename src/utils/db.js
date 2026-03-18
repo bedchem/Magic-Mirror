@@ -117,3 +117,37 @@ export async function deleteWidgetPosition(userUuid, instanceId) {
     userUuid, instanceId
   );
 }
+
+/* add links
+
+const links = [
+  "https://open.spotify.com/embed/track/5YwBaDW36fztKNnoiHQar3?utm_source=generator",
+  "https://open.spotify.com/embed/track/0OaacUi36UrMb1kEsLWW9E?utm_source=generator",
+  "https://open.spotify.com/embed/track/4Nh7Umpl8YPFPcggcby6JW?utm_source=generator",
+  "https://open.spotify.com/embed/track/58AFokYCv4jdJ2T0hEoQ2r?utm_source=generator",
+  "https://open.spotify.com/embed/track/5cF0dROlMOK5uNZtivgu50?utm_source=generator",
+  "https://open.spotify.com/embed/track/5ehgf6op0j2sE4lqjiTkMY?utm_source=generator",
+  "https://open.spotify.com/embed/track/72LSGNDLY4sdvyrGIKtd2Q?utm_source=generator",
+  "https://open.spotify.com/embed/track/1ZiCTRaAxZBf0GoiGhkiRp?utm_source=generator"
+];
+
+links.forEach(url => {
+  fetch('http://localhost:3000/api/spotify-links', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ url })
+  })
+    .then(res => res.json())
+    .then(data => console.log('Gespeichert:', url, data))
+    .catch(err => console.error(err));
+});
+
+
+ // see DB content
+node -e "import('sqlite3').then(({default:s})=>{const d=new s.Database('magic-mirror.db');d.all('SELECT * FROM users',(e,r)=>{console.table(r);d.close()})})"
+
+// Delete all DB users
+node -e "import('sqlite3').then(({ default: sqlite3 }) => {const db = new sqlite3.Database('magic-mirror.db');db.run('DELETE FROM users');db.run('DELETE FROM widget_positions', () => db.close());});"
+*/
