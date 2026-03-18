@@ -5,48 +5,79 @@ import notificationImage from '../assets/notification.png';
 
 const DEBUG = true;
 
-// ─── hook: measures camera brightness and returns a multiplier ───────────────
 function useAutoBrightness(videoRef, enabled = true) {
-  const [brightness, setBrightness] = useState(1);
+  const [exposure, setExposure] = useState({ brightness: 1, contrast: 1, saturation: 1 });
 
   useEffect(() => {
     if (!enabled) return;
 
-    const SAMPLE_W = 64;
-    const SAMPLE_H = 48;
     const INTERVAL_MS = 2000;
+    const PATCH_COLS = 8;
+    const PATCH_ROWS = 6;
+    const PATCH_W = 8;
+    const PATCH_H = 8;
 
     const canvas = document.createElement('canvas');
-    canvas.width  = SAMPLE_W;
-    canvas.height = SAMPLE_H;
+    canvas.width  = PATCH_W;
+    canvas.height = PATCH_H;
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
     const measure = () => {
       const video = videoRef.current;
       if (!video || !ctx || video.readyState < 2) return;
 
-      ctx.drawImage(video, 0, 0, SAMPLE_W, SAMPLE_H);
-      const data = ctx.getImageData(0, 0, SAMPLE_W, SAMPLE_H).data;
+      const vw = video.videoWidth;
+      const vh = video.videoHeight;
+      if (!vw || !vh) return;
 
-      let sum = 0;
-      const pixels = SAMPLE_W * SAMPLE_H;
-      for (let i = 0; i < data.length; i += 4) {
-        sum += 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
+      const patchLums = [];
+
+      for (let row = 0; row < PATCH_ROWS; row++) {
+        for (let col = 0; col < PATCH_COLS; col++) {
+          const sx = (col / PATCH_COLS) * vw;
+          const sy = (row / PATCH_ROWS) * vh;
+          const sw = vw / PATCH_COLS;
+          const sh = vh / PATCH_ROWS;
+
+          ctx.drawImage(video, sx, sy, sw, sh, 0, 0, PATCH_W, PATCH_H);
+          const data = ctx.getImageData(0, 0, PATCH_W, PATCH_H).data;
+
+          let sum = 0;
+          const pixels = PATCH_W * PATCH_H;
+          for (let i = 0; i < pixels; i++) {
+            sum += 0.2126 * data[i * 4] + 0.7152 * data[i * 4 + 1] + 0.0722 * data[i * 4 + 2];
+          }
+          patchLums.push(sum / pixels / 255);
+        }
       }
-      const luminance = sum / pixels / 255;
 
-      let multiplier;
-      if (luminance < 0.05) {
-        multiplier = 5.0;
-      } else if (luminance < 0.30) {
-        multiplier = 5.0 - ((luminance - 0.05) / 0.25) * 3.0;
-      } else if (luminance < 0.60) {
-        multiplier = 2.0 - ((luminance - 0.30) / 0.30) * 1.0;
-      } else {
-        multiplier = 1.0;
-      }
+      patchLums.sort((a, b) => a - b);
+      const darkCount = Math.max(1, Math.floor(patchLums.length * 0.20));
+      let darkSum = 0;
+      for (let i = 0; i < darkCount; i++) darkSum += patchLums[i];
+      const darkLuminance = darkSum / darkCount;
 
-      setBrightness(+multiplier.toFixed(2));
+let brightness;
+if (darkLuminance < 0.04) {
+  brightness = 2.5;
+} else if (darkLuminance < 0.15) {
+  brightness = 2.5 - ((darkLuminance - 0.04) / 0.11) * 0.8;
+} else if (darkLuminance < 0.35) {
+  brightness = 1.7 - ((darkLuminance - 0.15) / 0.20) * 0.5;
+} else if (darkLuminance < 0.55) {
+  brightness = 1.2 - ((darkLuminance - 0.35) / 0.20) * 0.2;
+} else {
+  brightness = 1.0;
+}
+
+      const contrast   = 1.0 + (brightness - 1.0) * 0.01;
+      const saturation = 1.0 + (brightness - 1.0) * 0.01;
+
+      setExposure({
+        brightness: +brightness.toFixed(2),
+        contrast:   +contrast.toFixed(2),
+        saturation: +saturation.toFixed(2),
+      });
     };
 
     measure();
@@ -54,7 +85,7 @@ function useAutoBrightness(videoRef, enabled = true) {
     return () => clearInterval(id);
   }, [enabled, videoRef]);
 
-  return brightness;
+  return exposure;
 }
 
 const baseSettings = {
@@ -65,8 +96,8 @@ const baseSettings = {
   smoothing: 0.2,
   sensitivity: 1,
   preprocessingQuality: 'max',
-  minDetectionConfidence: 0.5,
-  minTrackingConfidence: 0.5,
+  minDetectionConfidence: 0.3,
+  minTrackingConfidence: 0.3,
   pinchSensitivity: 0.2,
 };
 
@@ -348,14 +379,16 @@ function HandStatusDot({ status, index }) {
   );
 }
 
-function StatusBar({ statuses, brightness }) {
+function StatusBar({ statuses, exposure }) {
   return (
     <div className="status-bar">
       {statuses.map((s, i) => <HandStatusDot key={i} status={s} index={i} />)}
       {DEBUG && (
         <div className="status-bar__entry">
           <div className="status-bar__dot" style={{ background: '#a78bfa', boxShadow: '0 0 8px #a78bfa' }} />
-          <span className="status-bar__label">brightness {brightness}×</span>
+          <span className="status-bar__label">
+            b{exposure.brightness}× c{exposure.contrast}× s{exposure.saturation}×
+          </span>
         </div>
       )}
     </div>
@@ -375,12 +408,14 @@ export default function IndexPage() {
   const intervalRef = useRef(null);
   const spawnRef = useRef(null);
 
-  const autoBrightness = useAutoBrightness(videoRef, true);
+  const exposure = useAutoBrightness(videoRef, true);
 
   const handTrackingSettings = useMemo(() => ({
     ...baseSettings,
-    brightness: autoBrightness,
-  }), [autoBrightness]);
+    brightness: exposure.brightness,
+    contrast:   exposure.contrast,
+    saturation: exposure.saturation,
+  }), [exposure]);
 
   const takeComplimentPhoto = useCallback(async () => {
     const video = videoRef.current;
@@ -425,7 +460,6 @@ export default function IndexPage() {
     };
 
     scheduleNext();
-
     return () => clearTimeout(intervalRef.current);
   }, [complimentLoopStarted, takeComplimentPhoto]);
 
@@ -461,7 +495,7 @@ export default function IndexPage() {
 
   return (
     <div className="index-page">
-      {DEBUG && <StatusBar statuses={statuses} brightness={autoBrightness} />}
+      {DEBUG && <StatusBar statuses={statuses} exposure={exposure} />}
 
       <HandTrackingService
         settings={handTrackingSettings}
