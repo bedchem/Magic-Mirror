@@ -23,6 +23,7 @@ export async function initDB() {
 
     CREATE TABLE IF NOT EXISTS users (
       uuid TEXT PRIMARY KEY,
+      name TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
@@ -38,6 +39,12 @@ export async function initDB() {
       UNIQUE(user_uuid, instance_id)
     );
   `);
+
+  const userCols = await db.all('PRAGMA table_info(users)');
+  const hasNameColumn = userCols.some(col => col.name === 'name');
+  if (!hasNameColumn) {
+    await db.exec('ALTER TABLE users ADD COLUMN name TEXT');
+  }
 
   console.log('SQLite DB initialisiert:', dbPath);
 }
@@ -59,15 +66,26 @@ export async function getSpotifyLinks() {
 
 export async function upsertUser(uuid) {
   const database = getDB();
-  await database.run(
+  const result = await database.run(
     'INSERT OR IGNORE INTO users (uuid) VALUES (?)',
     uuid
   );
-  return database.get('SELECT * FROM users WHERE uuid = ?', uuid);
+  const user = await database.get('SELECT * FROM users WHERE uuid = ?', uuid);
+  return { ...user, isNew: (result?.changes ?? 0) > 0 };
 }
 
 export async function getUser(uuid) {
   const database = getDB();
+  return database.get('SELECT * FROM users WHERE uuid = ?', uuid);
+}
+
+export async function setUserName(uuid, name) {
+  const database = getDB();
+  await database.run(
+    'UPDATE users SET name = ? WHERE uuid = ?',
+    name,
+    uuid
+  );
   return database.get('SELECT * FROM users WHERE uuid = ?', uuid);
 }
 

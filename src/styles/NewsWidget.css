@@ -181,8 +181,6 @@
   to { transform: rotate(360deg); }
 }
 
-/* ── Modal ── */
-
 .nw-modal-backdrop {
   position: fixed;
   inset: 0;

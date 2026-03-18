@@ -10,8 +10,8 @@ import { addSpotifyLink, getSpotifyLinks } from './src/utils/db.js';
 import sharp from 'sharp';
 import crypto from 'crypto';
 import { spawn } from 'node:child_process';
-import { upsertUser, getUser, saveWidgetPositions, getWidgetPositions, deleteWidgetPosition } from './src/utils/db.js';
- 
+import { upsertUser, getUser, saveWidgetPositions, getWidgetPositions, deleteWidgetPosition, setUserName } from './src/utils/db.js';
+
 dotenv.config({ path: resolve(dirname(fileURLToPath(import.meta.url)), '.env') });
 
 await initDB();
@@ -68,7 +68,7 @@ function getFallbackCompliment() {
 
 app.use(cors({
   origin: 'http://localhost:5173',
-  methods: ['GET', 'POST', 'DELETE'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type']
 }));
 
@@ -172,7 +172,7 @@ app.post('/api/users', express.json(), async (req, res) => {
     res.status(500).json({ error: 'Kann User nicht speichern' });
   }
 });
- 
+
 app.get('/api/users/:uuid', async (req, res) => {
   try {
     const user = await getUser(req.params.uuid);
@@ -183,7 +183,22 @@ app.get('/api/users/:uuid', async (req, res) => {
     res.status(500).json({ error: 'Kann User nicht laden' });
   }
 });
- 
+
+app.put('/api/users/:uuid/name', express.json(), async (req, res) => {
+  const rawName = req.body?.name;
+  const name = typeof rawName === 'string' ? rawName.trim() : '';
+  if (!name) return res.status(400).json({ error: 'Name fehlt' });
+
+  try {
+    const user = await setUserName(req.params.uuid, name);
+    if (!user) return res.status(404).json({ error: 'User nicht gefunden' });
+    res.json(user);
+  } catch (err) {
+    console.error('User name set Fehler:', err);
+    res.status(500).json({ error: 'Kann Usernamen nicht speichern' });
+  }
+});
+
 app.get('/api/widget-positions/:uuid', async (req, res) => {
   try {
     const positions = await getWidgetPositions(req.params.uuid);
@@ -193,7 +208,7 @@ app.get('/api/widget-positions/:uuid', async (req, res) => {
     res.status(500).json({ error: 'Kann Positionen nicht laden' });
   }
 });
- 
+
 app.post('/api/widget-positions/:uuid', express.json(), async (req, res) => {
   const { widgets } = req.body;
   if (!Array.isArray(widgets)) return res.status(400).json({ error: 'widgets Array fehlt' });
@@ -205,7 +220,7 @@ app.post('/api/widget-positions/:uuid', express.json(), async (req, res) => {
     res.status(500).json({ error: 'Kann Positionen nicht speichern' });
   }
 });
- 
+
 app.delete('/api/widget-positions/:uuid/:instanceId', async (req, res) => {
   try {
     await deleteWidgetPosition(req.params.uuid, req.params.instanceId);

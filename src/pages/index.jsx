@@ -43,6 +43,22 @@ function getRandomInterval() {
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+function getGreetingByTime(date = new Date()) {
+  const hour = date.getHours();
+  if (hour >= 5 && hour < 11) return 'Guten Morgen';
+  if (hour >= 11 && hour < 17) return 'Guten Tag';
+  if (hour >= 17 && hour < 22) return 'Guten Abend';
+  return 'Gute Nacht';
+}
+
+const NAME_KEYBOARD_ROWS = [
+  ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
+  ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
+  ['Z', 'X', 'C', 'V', 'B', 'N', 'M'],
+];
+
+const ONBOARDING_PINCH_DEBOUNCE_MS = 220;
+
 function LockClock() {
   const [time, setTime] = useState(new Date());
   useEffect(() => {
@@ -83,7 +99,8 @@ function UUIDModal({ onConfirm, onCancel }) {
         body: JSON.stringify({ uuid: trimmed }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      onConfirm(trimmed);
+      const user = await res.json();
+      onConfirm({ uuid: trimmed, user });
     } catch (e) {
       setError('Fehler beim Speichern des Users');
     } finally {
@@ -120,6 +137,177 @@ function UUIDModal({ onConfirm, onCancel }) {
             {loading ? '…' : 'Anmelden'}
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function NameOnboarding({ uuid, handPositions, onComplete, onCancel }) {
+  const [name, setName] = useState('');
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [hoveredKey, setHoveredKey] = useState(null);
+  const wasPinching = useRef({});
+  const lastPinchTsRef = useRef(0);
+
+  const addChar = useCallback((char) => {
+    setName(prev => {
+      if (prev.length >= 22) return prev;
+      return prev + char;
+    });
+  }, []);
+
+  const applyKey = useCallback((key) => {
+    setError('');
+    if (key === 'BACKSPACE') { setName(prev => prev.slice(0, -1)); return; }
+    if (key === 'SPACE') {
+      setName(prev => {
+        if (!prev || prev.endsWith(' ') || prev.length >= 22) return prev;
+        return `${prev} `;
+      });
+      return;
+    }
+    if (key === 'CLEAR') { setName(''); return; }
+    if (key === 'DONE') return;
+    addChar(key);
+  }, [addChar]);
+
+  const handleSave = useCallback(async () => {
+    const trimmed = name.trim();
+    if (trimmed.length < 2) { setError('Please enter at least 2 letters.'); return; }
+    setSaving(true);
+    try {
+      const res = await fetch(`http://localhost:3000/api/users/${uuid}/name`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: trimmed }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      onComplete(trimmed);
+    } catch (e) {
+      setError('Saving name failed. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  }, [name, onComplete, uuid]);
+
+  useEffect(() => {
+    let newHoveredKey = null;
+
+    for (const pos of Object.values(handPositions)) {
+      const { handIndex = 0, detected, palmVisible, isPinching, x, y } = pos;
+      const wasPinch = wasPinching.current[handIndex] || false;
+
+      if (!detected || palmVisible === false) {
+        wasPinching.current[handIndex] = false;
+        continue;
+      }
+
+      const els = document.elementsFromPoint(x, y);
+      const keyTarget = els.find(el => el?.dataset?.keyboardKey || el?.closest?.('[data-keyboard-key]'));
+      const keyEl = keyTarget?.dataset?.keyboardKey ? keyTarget : keyTarget?.closest?.('[data-keyboard-key]');
+      const key = keyEl?.dataset?.keyboardKey;
+      if (key) newHoveredKey = key;
+
+      if (isPinching && !wasPinch) {
+        const now = Date.now();
+        if (now - lastPinchTsRef.current < ONBOARDING_PINCH_DEBOUNCE_MS) {
+          wasPinching.current[handIndex] = true;
+          continue;
+        }
+        if (key) {
+          lastPinchTsRef.current = now;
+          if (key === 'DONE') handleSave();
+          else applyKey(key);
+        }
+      }
+
+      wasPinching.current[handIndex] = !!isPinching;
+    }
+
+    setHoveredKey(newHoveredKey);
+  }, [handPositions, applyKey, handleSave]);
+
+  return (
+    <div className="name-onboarding-overlay" role="dialog" aria-modal="true" aria-label="Enter your name">
+      <div className="name-onboarding-card">
+        <h2 className="name-onboarding-title">New account detected</h2>
+        <p className="name-onboarding-subtitle">Type your name with pinches, then press DONE.</p>
+
+        <div className="name-onboarding-input" aria-live="polite">
+          <span className={name ? '' : 'name-onboarding-input__placeholder'}>
+            {name || 'Your name'}
+          </span>
+          <span className="name-onboarding-input__cursor" />
+        </div>
+
+        <div className="name-kb">
+          {NAME_KEYBOARD_ROWS.map((row, rowIdx) => (
+            <div key={`row-${rowIdx}`} className="name-kb-row">
+              {row.map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  data-keyboard-key={key}
+                  className={`name-kb-key${hoveredKey === key ? ' name-kb-key--hand-hover' : ''}`}
+                  onClick={() => applyKey(key)}
+                  disabled={saving}
+                >
+                  {key}
+                </button>
+              ))}
+            </div>
+          ))}
+
+          <div className="name-kb-row name-kb-row--actions">
+            <button
+              type="button"
+              data-keyboard-key="BACKSPACE"
+              className={`name-kb-key name-kb-key--wide${hoveredKey === 'BACKSPACE' ? ' name-kb-key--hand-hover' : ''}`}
+              onClick={() => applyKey('BACKSPACE')}
+              disabled={saving}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20" style={{ marginRight: '6px' }}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 12H7m0 0l4-4m-4 4l4 4" />
+                <path strokeLinecap="round" d="M3 6l-.01 12" />
+              </svg>
+              Del
+            </button>
+            <button
+              type="button"
+              data-keyboard-key="SPACE"
+              className={`name-kb-key name-kb-key--space${hoveredKey === 'SPACE' ? ' name-kb-key--hand-hover' : ''}`}
+              onClick={() => applyKey('SPACE')}
+              disabled={saving}
+            >
+              Space
+            </button>
+            <button
+              type="button"
+              data-keyboard-key="CLEAR"
+              className={`name-kb-key name-kb-key--wide${hoveredKey === 'CLEAR' ? ' name-kb-key--hand-hover' : ''}`}
+              onClick={() => applyKey('CLEAR')}
+              disabled={saving}
+            >
+              Clear
+            </button>
+          </div>
+
+          <div className="name-kb-row name-kb-row--actions">
+
+            <button
+              type="button"
+              data-keyboard-key="DONE"
+              className={`name-kb-key name-kb-key--done${hoveredKey === 'DONE' ? ' name-kb-key--hand-hover' : ''}`}
+              onClick={handleSave}
+              disabled={saving}
+            >
+              {saving ? 'Saving…' : 'Done ↵'}
+            </button>
+          </div>
+        </div>
+
+        {error && <p className="name-onboarding-error">{error}</p>}
       </div>
     </div>
   );
@@ -330,12 +518,23 @@ export default function IndexPage() {
   const [compliment, setCompliment] = useState('');
   const [complimentLoopStarted, setComplimentLoopStarted] = useState(false);
   const [savedWidgetPositions, setSavedWidgetPositions] = useState([]);
+  const [pendingNameSetup, setPendingNameSetup] = useState(null);
+  const [welcomeText, setWelcomeText] = useState('');
   const videoRef = useRef(null);
   const complimentRequestedRef = useRef(false);
   const intervalRef = useRef(null);
   const spawnRef = useRef(null);
   const activeWidgetsRef = useRef([]);
   const saveTimeoutRef = useRef(null);
+  const welcomeTimeoutRef = useRef(null);
+
+  const showWelcomeMessage = useCallback((name) => {
+    const safeName = (name || '').trim();
+    if (!safeName) return;
+    clearTimeout(welcomeTimeoutRef.current);
+    setWelcomeText(`${getGreetingByTime(new Date())}, ${safeName}`);
+    welcomeTimeoutRef.current = setTimeout(() => setWelcomeText(''), 4200);
+  }, []);
 
   const takeComplimentPhoto = useCallback(async () => {
     const video = videoRef.current;
@@ -367,6 +566,13 @@ export default function IndexPage() {
     scheduleNext();
     return () => clearTimeout(intervalRef.current);
   }, [complimentLoopStarted, takeComplimentPhoto]);
+
+  const startComplimentFlow = useCallback(() => {
+    if (complimentRequestedRef.current) return;
+    complimentRequestedRef.current = true;
+    setComplimentLoopStarted(true);
+    setTimeout(() => takeComplimentPhoto(), 1500);
+  }, [takeComplimentPhoto]);
 
   const loadWidgetPositions = useCallback(async (uuid) => {
     try {
@@ -417,24 +623,40 @@ export default function IndexPage() {
     videoRef.current = videoEl;
   }, []);
 
-  const handleUnlock = useCallback(async (uuid) => {
+  const handleUnlock = useCallback(async (authPayload) => {
+    const uuid = authPayload?.uuid || authPayload;
+    const user = authPayload?.user || null;
     const positions = await loadWidgetPositions(uuid);
     setSavedWidgetPositions(positions);
     setCurrentUser(uuid);
     setLoggedIn(true);
-    if (!complimentRequestedRef.current) {
-      complimentRequestedRef.current = true;
-      setComplimentLoopStarted(true);
-      setTimeout(() => takeComplimentPhoto(), 1500);
+
+    const userName = typeof user?.name === 'string' ? user.name.trim() : '';
+    const isNewAccount = !!user?.isNew || !userName;
+    if (isNewAccount) {
+      setPendingNameSetup({ uuid });
+    } else {
+      showWelcomeMessage(userName);
+      startComplimentFlow();
     }
-  }, [takeComplimentPhoto, loadWidgetPositions]);
+
+  }, [loadWidgetPositions, showWelcomeMessage, startComplimentFlow]);
+
+  const handleNameSetupDone = useCallback((name) => {
+    setPendingNameSetup(null);
+    showWelcomeMessage(name);
+    startComplimentFlow();
+  }, [showWelcomeMessage, startComplimentFlow]);
 
   const handleLogout = useCallback(() => {
     clearTimeout(intervalRef.current);
     clearTimeout(saveTimeoutRef.current);
+    clearTimeout(welcomeTimeoutRef.current);
     setLoggedIn(false);
     setCurrentUser(null);
     setSavedWidgetPositions([]);
+    setPendingNameSetup(null);
+    setWelcomeText('');
     setCompliment('');
     setComplimentLoopStarted(false);
     complimentRequestedRef.current = false;
@@ -464,17 +686,30 @@ export default function IndexPage() {
         <>
           {DEBUG && <StatusBar statuses={statuses} />}
           {DEBUG && <LogoutButton onLogout={handleLogout} />}
-          <HandNav handPositions={handPositions} onSpawnWidget={handleSpawnWidget} />
-<WidgetDragManager
-  key={currentUser}
-  handPositions={handPositions}
-  spawnRef={spawnRef}
-  initialWidgets={savedWidgetPositions}
-  onWidgetsChange={handleWidgetsChange}
-  onWidgetRemoved={handleWidgetRemoved}
-/>
+          {!pendingNameSetup && <HandNav handPositions={handPositions} onSpawnWidget={handleSpawnWidget} />}
+          <WidgetDragManager
+            key={currentUser}
+            handPositions={pendingNameSetup ? {} : handPositions}
+            spawnRef={spawnRef}
+            initialWidgets={savedWidgetPositions}
+            onWidgetsChange={handleWidgetsChange}
+            onWidgetRemoved={handleWidgetRemoved}
+          />
           <LiveCursor handIndex={0} />
           <LiveCursor handIndex={1} />
+          {pendingNameSetup && (
+            <NameOnboarding
+              uuid={pendingNameSetup.uuid}
+              handPositions={handPositions}
+              onComplete={handleNameSetupDone}
+              onCancel={handleLogout}
+            />
+          )}
+          {welcomeText && (
+            <div className="welcome-greeting" role="status" aria-live="polite">
+              {welcomeText}
+            </div>
+          )}
           {compliment && (
             <div className="compliment-popup" role="status" aria-live="polite">
               <div className="card">
