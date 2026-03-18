@@ -55,7 +55,7 @@ const DEFAULT_TIMETABLE = {
         { period: 1, subj: "Wi-He", detail: "ENGL", room: "c+2/03" },
         { period: 2, subj: "Wi-He", detail: "ENGL", room: "c+2/03" },
         { period: 3, subj: "Sch-Fi", detail: "Re-Wiku", room: "c+2/03" },
-        { period: 4, subj: "Kü-Ge", detail: "M8", room: "E-Lab, Inf II"},
+        { period: 4, subj: "Kü-Ge", detail: "M8", room: "E-Lab, Inf II" },
         { period: 5, subj: "Kü-Ge", detail: "M8", room: "E-Lab, Inf II" },
         { period: 7, subj: "Pr-Ge", detail: "M5-M7", room: "Inf III" },
         { period: 8, subj: "Pr-Ge", detail: "M5-M7", room: "Inf III" },

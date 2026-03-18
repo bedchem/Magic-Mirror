@@ -1,14 +1,14 @@
 import "/src/styles/KalenderWidget.css";
 import { useState, useRef, useEffect, useCallback } from "react";
 
-const MONTH_NAMES = ["Jan","Feb","Mär","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"];
-const DAY_NAMES   = ["Mo","Di","Mi","Do","Fr","Sa","So"];
+const MONTH_NAMES = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
+const DAY_NAMES = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 
 function buildCells(year, month) {
-  const first  = new Date(year, month, 1);
-  const last   = new Date(year, month + 1, 0);
+  const first = new Date(year, month, 1);
+  const last = new Date(year, month + 1, 0);
   const offset = (first.getDay() + 6) % 7;
-  const cells  = [];
+  const cells = [];
   for (let i = 0; i < offset; i++) cells.push(null);
   for (let d = 1; d <= last.getDate(); d++) cells.push(d);
   return cells;
@@ -22,7 +22,7 @@ export default function KalenderWidget({ handPositions = {} }) {
   const [animate, setAnimate] = useState(null);
   const [displayDate, setDisplayDate] = useState(viewDate);
   const isAnimatingRef = useRef(false);
-  const year  = displayDate.getFullYear();
+  const year = displayDate.getFullYear();
   const month = displayDate.getMonth();
 
   const goMonth = useCallback((dir) => {
@@ -47,34 +47,34 @@ export default function KalenderWidget({ handPositions = {} }) {
   }, []);
 
   const prevMonth = useCallback(() => goMonth(-1), [goMonth]);
-  const nextMonth = useCallback(() => goMonth(1),  [goMonth]);
+  const nextMonth = useCallback(() => goMonth(1), [goMonth]);
 
   const pointerRef = useRef(null);
   const contentRef = useRef(null);
-  
+
   const onPointerDown = (e) => {
     if (contentRef.current && contentRef.current.contains(e.target)) {
       pointerRef.current = { x: e.clientX, y: e.clientY };
     }
   };
-  
+
   const onPointerUp = (e) => {
     if (!pointerRef.current) return;
-    
+
     if (!contentRef.current || !contentRef.current.contains(e.target)) {
       pointerRef.current = null;
       return;
     }
-    
+
     const dx = e.clientX - pointerRef.current.x;
     const dy = e.clientY - pointerRef.current.y;
     pointerRef.current = null;
-    
+
     if (Math.abs(dx) > 30 && Math.abs(dx) > Math.abs(dy)) {
       dx < 0 ? nextMonth() : prevMonth();
     }
   };
-  
+
   const onPointerCancel = () => { pointerRef.current = null; };
   const onPointerLeave = () => { pointerRef.current = null; };
 
@@ -95,7 +95,7 @@ export default function KalenderWidget({ handPositions = {} }) {
   useEffect(() => {
     for (const pos of Object.values(handPositions)) {
       const { handIndex, detected, palmVisible, isPinching,
-              pinchMidX, pinchMidY, x: hx, y: hy } = pos;
+        pinchMidX, pinchMidY, x: hx, y: hy } = pos;
       const tx = hx ?? pinchMidX;
       const ty = hy ?? pinchMidY;
       const was = prevPinch.current[handIndex];
@@ -134,7 +134,7 @@ export default function KalenderWidget({ handPositions = {} }) {
 
       if (!movedEnough.current[handIndex] || !handCanSwipe.current[handIndex]) {
         prevPinch.current[handIndex] = isPinching;
-        continue;5
+        continue; 5
       }
 
       const anchor = handLiveAnchor.current[handIndex] ?? startPos;

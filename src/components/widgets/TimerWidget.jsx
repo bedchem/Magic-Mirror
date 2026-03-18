@@ -263,7 +263,7 @@ export default function TimerWidget({ handPositions = {} }) {
   const drum0 = useRef({ scroll: null, snap: null });
   const drum1 = useRef({ scroll: null, snap: null });
   const drum2 = useRef({ scroll: null, snap: null });
-  
+
   const drumRefs = useMemo(() => [drum0.current, drum1.current, drum2.current], []);
 
   const screenRef = useRef(screen);
@@ -378,7 +378,7 @@ export default function TimerWidget({ handPositions = {} }) {
             <DrumConnected value={s} onChange={onDrumChange(setS, drum2)} max={59} label="Sekunden" drumIndex={2} drumRefs={drumRefs} />
           </div>
         </div>
-          <div className="t-bar">
+        <div className="t-bar">
           <button className="t-bar-start" onClick={startTimer} disabled={totalMs <= 0}>Start</button>
         </div>
       </div>
@@ -396,7 +396,7 @@ export default function TimerWidget({ handPositions = {} }) {
               transform="rotate(-90 160 160)"
               className="t-arc"
             />
-          <text x="160" y="175" textAnchor="middle" className={`t-ring-time${done ? ' done' : ''}`}>{timeStr}</text>
+            <text x="160" y="175" textAnchor="middle" className={`t-ring-time${done ? ' done' : ''}`}>{timeStr}</text>
           </svg>
         </div>
         <div className="t-btns">

@@ -87,8 +87,8 @@ export default function SpotifyWidget() {
       if (e.origin !== 'https://open.spotify.com') return;
       const d = typeof e.data === 'string'
         ? (() => {
-            try { return JSON.parse(e.data); } catch { return null; }
-          })()
+          try { return JSON.parse(e.data); } catch { return null; }
+        })()
         : e.data;
 
       if (!d) return;
@@ -420,25 +420,25 @@ export default function SpotifyWidget() {
           <div className="sp-controls">
             <button className="sp-btn" onClick={handlePreviousFromHistory} disabled={historyIndex === 0 || isSwitching}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M6 6h2v12H6zm10 0v12l-8-6z"/>
+                <path d="M6 6h2v12H6zm10 0v12l-8-6z" />
               </svg>
             </button>
 
             <button className="sp-btn sp-btn-play" onClick={handlePlayPause} disabled={isSwitching}>
               {isPlaying ? (
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                  <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
                 </svg>
               ) : (
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M8 5v14l11-7z"/>
+                  <path d="M8 5v14l11-7z" />
                 </svg>
               )}
             </button>
 
             <button className="sp-btn" onClick={handleNextRandom} disabled={isSwitching}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M6 18l8-6-8-6v12zM16 6v12h2V6h-2z"/>
+                <path d="M6 18l8-6-8-6v12zM16 6v12h2V6h-2z" />
               </svg>
             </button>
           </div>

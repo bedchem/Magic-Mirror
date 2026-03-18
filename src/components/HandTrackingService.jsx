@@ -19,9 +19,9 @@ const clamp01 = (v) => Math.min(Math.max(v, 0), 1);
 const FPS_SMOOTH = 0.9;
 
 const HAND_CONNECTIONS = [
-  [0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],
-  [0,9],[9,10],[10,11],[11,12],[0,13],[13,14],[14,15],[15,16],
-  [0,17],[17,18],[18,19],[19,20],[5,9],[9,13],[13,17],
+  [0, 1], [1, 2], [2, 3], [3, 4], [0, 5], [5, 6], [6, 7], [7, 8],
+  [0, 9], [9, 10], [10, 11], [11, 12], [0, 13], [13, 14], [14, 15], [15, 16],
+  [0, 17], [17, 18], [18, 19], [19, 20], [5, 9], [9, 13], [13, 17],
 ];
 
 const SLOT_STATE = { FREE: 0, TENTATIVE: 1, LOCKED: 2 };
@@ -44,7 +44,7 @@ const SHAPE_THRESHOLD = 0.40;
 const SIZE_RATIO_MIN = 0.65;
 const SIZE_RATIO_MAX = 1.45;
 
-const VEL_SMOOTH  = 0.80;
+const VEL_SMOOTH = 0.80;
 const FEAT_SMOOTH = 0.70;
 
 const l2 = (a, b) => {
@@ -90,87 +90,87 @@ function isPalmFacingCamera(landmarks, handLabel) {
 }
 
 const makeEmptySlot = () => ({
-  state:           SLOT_STATE.FREE,
-  wx:              0.5,
-  wy:              0.5,
-  absenceCount:    0,
+  state: SLOT_STATE.FREE,
+  wx: 0.5,
+  wy: 0.5,
+  absenceCount: 0,
   tentativeFrames: 0,
-  velX:            0,
-  velY:            0,
-  handSize:        0,
-  feat:            null,
-  handedness:      null,
+  velX: 0,
+  velY: 0,
+  handSize: 0,
+  feat: null,
+  handedness: null,
 });
 const makeEmptySlots = () => ({ [PRIMARY_SLOT]: makeEmptySlot() });
 
 const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings = {}, enabled }) => {
-  const videoRef           = useRef(null);
-  const canvasRef          = useRef(null);
-  const procCanvasRef      = useRef(null);
-  const procCtxRef         = useRef(null);
-  const settingsRef        = useRef(settings);
-  const posCallbackRef     = useRef(onHandPosition);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const procCanvasRef = useRef(null);
+  const procCtxRef = useRef(null);
+  const settingsRef = useRef(settings);
+  const posCallbackRef = useRef(onHandPosition);
   const gestureCallbackRef = useRef(onGesture);
-  const videoReadyRef      = useRef(onVideoReady);
-  const showPreviewRef     = useRef(settings.showPreview || false);
-  const isProcessingRef    = useRef(false);
-  const smoothedRef        = useRef({});
-  const smoothingRef       = useRef(0);
-  const sensitivityRef     = useRef(1);
-  const cameraRef          = useRef(null);
-  const handsRef           = useRef(null);
-  const runtimeConfigRef   = useRef(getHandTrackingRuntimeConfig(settings));
-  const fpsRef             = useRef({ value: 0, last: performance?.now?.() ?? Date.now() });
-  const cameraFpsRef       = useRef({
+  const videoReadyRef = useRef(onVideoReady);
+  const showPreviewRef = useRef(settings.showPreview || false);
+  const isProcessingRef = useRef(false);
+  const smoothedRef = useRef({});
+  const smoothingRef = useRef(0);
+  const sensitivityRef = useRef(1);
+  const cameraRef = useRef(null);
+  const handsRef = useRef(null);
+  const runtimeConfigRef = useRef(getHandTrackingRuntimeConfig(settings));
+  const fpsRef = useRef({ value: 0, last: performance?.now?.() ?? Date.now() });
+  const cameraFpsRef = useRef({
     value: 0,
     lastNow: 0,
     lastFrames: null,
     callbackId: null,
     fallback: 0,
   });
-  const frameLimiterRef    = useRef({ lastSent: 0 });
-  const slotsRef           = useRef(makeEmptySlots());
+  const frameLimiterRef = useRef({ lastSent: 0 });
+  const slotsRef = useRef(makeEmptySlots());
 
   const [previewPos, setPreviewPos] = useState({ x: 16, y: 16 });
-  const [dragging, setDragging]     = useState(false);
+  const [dragging, setDragging] = useState(false);
   const [dragOrigin, setDragOrigin] = useState({ x: 0, y: 0 });
 
-  const isEnabled   = enabled ?? settings.enabled ?? false;
+  const isEnabled = enabled ?? settings.enabled ?? false;
   const showPreview = settings.showPreview || false;
-  const orientRot   = CAMERA_ORIENTATION_ROTATIONS[settings.cameraOrientation || 'landscape'] ?? 0;
-  const camRot      = CAMERA_POSITION_ROTATIONS[settings.cameraPosition    || 'top']         ?? 0;
+  const orientRot = CAMERA_ORIENTATION_ROTATIONS[settings.cameraOrientation || 'landscape'] ?? 0;
+  const camRot = CAMERA_POSITION_ROTATIONS[settings.cameraPosition || 'top'] ?? 0;
 
   useEffect(() => {
-    settingsRef.current    = settings;
+    settingsRef.current = settings;
     runtimeConfigRef.current = getHandTrackingRuntimeConfig(settings);
     showPreviewRef.current = settings.showPreview || false;
-    smoothingRef.current   = clampVal(settings.smoothing,   0,    0.95, 0);
-    sensitivityRef.current = clampVal(settings.sensitivity, 0.25, 3,    1);
+    smoothingRef.current = clampVal(settings.smoothing, 0, 0.95, 0);
+    sensitivityRef.current = clampVal(settings.sensitivity, 0.25, 3, 1);
   }, [settings]);
 
-  useEffect(() => { posCallbackRef.current     = onHandPosition; }, [onHandPosition]);
-  useEffect(() => { gestureCallbackRef.current = onGesture;      }, [onGesture]);
-  useEffect(() => { videoReadyRef.current      = onVideoReady;   }, [onVideoReady]);
+  useEffect(() => { posCallbackRef.current = onHandPosition; }, [onHandPosition]);
+  useEffect(() => { gestureCallbackRef.current = onGesture; }, [onGesture]);
+  useEffect(() => { videoReadyRef.current = onVideoReady; }, [onVideoReady]);
   useEffect(() => () => {
-    posCallbackRef.current     = null;
+    posCallbackRef.current = null;
     gestureCallbackRef.current = null;
-    videoReadyRef.current      = null;
+    videoReadyRef.current = null;
   }, []);
 
   const onResults = useCallback((results) => {
     const canvas = canvasRef.current;
-    const video  = videoRef.current;
+    const video = videoRef.current;
     if (!canvas || !video) return;
 
     const ctx = canvas.getContext('2d');
-    const w   = canvas.width  = video.videoWidth;
-    const h   = canvas.height = video.videoHeight;
+    const w = canvas.width = video.videoWidth;
+    const h = canvas.height = video.videoHeight;
     ctx.clearRect(0, 0, w, h);
     const s = settingsRef.current || {};
 
-    const nowTs   = performance?.now?.() ?? Date.now();
+    const nowTs = performance?.now?.() ?? Date.now();
     const elapsed = nowTs - fpsRef.current.last;
-    fpsRef.current.last  = nowTs;
+    fpsRef.current.last = nowTs;
     fpsRef.current.value =
       FPS_SMOOTH * fpsRef.current.value +
       (1 - FPS_SMOOTH) * (elapsed > 0 ? 1000 / elapsed : 0);
@@ -197,8 +197,8 @@ const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings
       ctx.restore();
     }
 
-    const allHands  = results.multiHandLandmarks || [];
-    const allLabels = results.multiHandedness    || [];
+    const allHands = results.multiHandLandmarks || [];
+    const allLabels = results.multiHandedness || [];
 
     const seenLabels = new Set();
     const candidates = [];
@@ -210,8 +210,8 @@ const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings
         candidates.push({
           hand,
           label,
-          wx:   hand[0].x,
-          wy:   hand[0].y,
+          wx: hand[0].x,
+          wy: hand[0].y,
           al,
           feat: computeFeatureVec(hand, al),
         });
@@ -267,8 +267,8 @@ const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings
         if (sl.handedness && label.toLowerCase() !== sl.handedness) return;
 
         const score = dPred * 1.0
-                    + featDist * 0.6
-                    + (sl.handSize > 0 ? Math.abs(1 - al / sl.handSize) * 0.4 : 0);
+          + featDist * 0.6
+          + (sl.handSize > 0 ? Math.abs(1 - al / sl.handSize) * 0.4 : 0);
 
         if (score < bestScore) {
           bestScore = score;
@@ -301,15 +301,15 @@ const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings
       sl.absenceCount = 0;
 
       if (al > 0) {
-        sl.handSize  = sl.handSize > 0
+        sl.handSize = sl.handSize > 0
           ? sl.handSize * FEAT_SMOOTH + al * (1 - FEAT_SMOOTH)
           : al;
-        sl.feat      = blendVec(sl.feat, computeFeatureVec(hand, al), FEAT_SMOOTH);
+        sl.feat = blendVec(sl.feat, computeFeatureVec(hand, al), FEAT_SMOOTH);
         sl.handedness = label.toLowerCase();
       }
 
       if (sl.state === SLOT_STATE.FREE) {
-        sl.state           = SLOT_STATE.TENTATIVE;
+        sl.state = SLOT_STATE.TENTATIVE;
         sl.tentativeFrames = 1;
       } else if (sl.state === SLOT_STATE.TENTATIVE) {
         sl.tentativeFrames++;
@@ -344,13 +344,13 @@ const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings
       const handIndex = label.toLowerCase() === 'right' ? RIGHT_HAND_INDEX : LEFT_HAND_INDEX;
       emitOnlyActiveHand(handIndex);
 
-      const al          = computeHandSize(hand, w, h);
+      const al = computeHandSize(hand, w, h);
       const palmVisible = isPalmFacingCamera(hand, label);
 
       if (showPreviewRef.current) {
         const mirrored = hand.map(lm => ({ ...lm, x: 1 - lm.x }));
-        const stateTag = sl.state === SLOT_STATE.LOCKED     ? '🔒' :
-                         sl.state === SLOT_STATE.TENTATIVE  ? `⏳${sl.tentativeFrames}/${LOCK_FRAMES}` : '?';
+        const stateTag = sl.state === SLOT_STATE.LOCKED ? '🔒' :
+          sl.state === SLOT_STATE.TENTATIVE ? `⏳${sl.tentativeFrames}/${LOCK_FRAMES}` : '?';
         const lineColor = sl.state === SLOT_STATE.LOCKED
           ? (palmVisible ? '#00ff00' : '#888888')
           : '#ffaa00';
@@ -371,7 +371,7 @@ const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings
           handIndex,
           x: smoothedRef.current[handIndex]
             ? smoothedRef.current[handIndex].x * window.innerWidth
-            : window.innerWidth  / 2,
+            : window.innerWidth / 2,
           y: smoothedRef.current[handIndex]
             ? smoothedRef.current[handIndex].y * window.innerHeight
             : window.innerHeight / 2,
@@ -379,41 +379,41 @@ const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings
       } else {
         if (!al || !isFinite(al) || al <= 0) return;
 
-        const thumb  = hand[4], index  = hand[8];
+        const thumb = hand[4], index = hand[8];
         const middle = hand[12], pinky = hand[20];
         if (!thumb || !index || !middle || !pinky) return;
 
-        const tx  = thumb.x  * w, ty  = thumb.y  * h;
-        const ix  = index.x  * w, iy  = index.y  * h;
+        const tx = thumb.x * w, ty = thumb.y * h;
+        const ix = index.x * w, iy = index.y * h;
         const mdx = middle.x * w, mdy = middle.y * h;
-        const pkx = pinky.x  * w, pky = pinky.y  * h;
+        const pkx = pinky.x * w, pky = pinky.y * h;
 
-        const pinchDist = Math.hypot(tx - ix,  ty - iy);
+        const pinchDist = Math.hypot(tx - ix, ty - iy);
         const clickDist = Math.hypot(tx - mdx, ty - mdy);
         const pinkyDist = Math.hypot(tx - pkx, ty - pky);
 
-        const pinchThr  = s.pinchSensitivity || 0.2;
+        const pinchThr = s.pinchSensitivity || 0.2;
         const normPinch = clamp01(pinchDist / (al * 4.5));
         const scaledThr = al * 4.5 * pinchThr;
-        const pinchStr  = scaledThr > 0 ? Math.max(0, 1 - pinchDist / scaledThr) : 0;
-        const isPinching  = pinchDist < scaledThr;
-        const clickStr    = scaledThr > 0 ? Math.max(0, 1 - clickDist / scaledThr) : 0;
-        const isClicking  = clickDist < scaledThr;
+        const pinchStr = scaledThr > 0 ? Math.max(0, 1 - pinchDist / scaledThr) : 0;
+        const isPinching = pinchDist < scaledThr;
+        const clickStr = scaledThr > 0 ? Math.max(0, 1 - clickDist / scaledThr) : 0;
+        const isClicking = clickDist < scaledThr;
 
-        const fistThr    = s.fistThreshold  || 0.35;
-        const openThr    = Math.max(s.openThreshold || 0.65, fistThr + 0.1);
-        const normPinky  = al ? pinkyDist / al : 0;
-        const isFist     = normPinky <= fistThr;
+        const fistThr = s.fistThreshold || 0.35;
+        const openThr = Math.max(s.openThreshold || 0.65, fistThr + 0.1);
+        const normPinky = al ? pinkyDist / al : 0;
+        const isFist = normPinky <= fistThr;
         const isHandOpen = normPinky >= openThr;
 
-        const mcpIndex  = hand[5],  mcpMiddle = hand[9];
-        const mcpRing   = hand[13], mcpPinkyL = hand[17];
+        const mcpIndex = hand[5], mcpMiddle = hand[9];
+        const mcpRing = hand[13], mcpPinkyL = hand[17];
         if (!mcpIndex || !mcpMiddle || !mcpRing || !mcpPinkyL) return;
 
         const mcpX = (mcpIndex.x + mcpMiddle.x + mcpRing.x + mcpPinkyL.x) / 4;
         const mcpY = (mcpIndex.y + mcpMiddle.y + mcpRing.y + mcpPinkyL.y) / 4;
-        const fmx  = (thumb.x + index.x) / 2;
-        const fmy  = (thumb.y + index.y) / 2;
+        const fmx = (thumb.x + index.x) / 2;
+        const fmy = (thumb.y + index.y) / 2;
 
         const BLEND = 0.4;
         const mx = mcpX + (fmx - mcpX) * BLEND;
@@ -427,11 +427,11 @@ const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings
         );
 
         const margin = clamp01(s.cameraMargin ?? 0.15);
-        const remap  = (v) => clamp01((v - margin) / (1 - 2 * margin));
+        const remap = (v) => clamp01((v - margin) / (1 - 2 * margin));
         const ax = clamp01(((remap(nx) - 0.5) * sensitivityRef.current) + 0.5);
         const ay = clamp01(((remap(ny) - 0.5) * sensitivityRef.current) + 0.5);
 
-        const sm   = smoothingRef.current;
+        const sm = smoothingRef.current;
         const prev = smoothedRef.current[handIndex];
         let sx = ax, sy = ay;
 
@@ -442,7 +442,7 @@ const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings
             sx = prev.x; sy = prev.y;
           } else if (sm > 0) {
             const effectiveSm = isPinching ? Math.min(sm + 0.12, 0.92) : sm;
-            const adaptiveSm  = moveDist > 0.06 ? Math.max(effectiveSm - 0.15, 0) : effectiveSm;
+            const adaptiveSm = moveDist > 0.06 ? Math.max(effectiveSm - 0.15, 0) : effectiveSm;
             sx = prev.x + (ax - prev.x) * (1 - adaptiveSm);
             sy = prev.y + (ay - prev.y) * (1 - adaptiveSm);
           }
@@ -455,39 +455,39 @@ const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings
           detected: true,
           palmVisible: true,
           isPinching,
-          pinchStrength:           Math.min(pinchStr, 1),
-          pinchDistance:           normPinch,
+          pinchStrength: Math.min(pinchStr, 1),
+          pinchDistance: normPinch,
           isClicking,
-          clickStrength:           Math.min(clickStr, 1),
+          clickStrength: Math.min(clickStr, 1),
           isFist,
-          fistStrength:            clamp01(1 - normPinky / fistThr),
+          fistStrength: clamp01(1 - normPinky / fistThr),
           isHandOpen,
           pinkyThumbDistanceRatio: normPinky,
-          handedness:              label.toLowerCase(),
+          handedness: label.toLowerCase(),
           handIndex,
-          handSize:                al,
+          handSize: al,
           pinchMidX,
           pinchMidY,
         });
 
         if (showPreviewRef.current) {
           const mirrored = hand.map(lm => ({ ...lm, x: 1 - lm.x }));
-          const mTX  = mirrored[4].x  * w, mTY  = mirrored[4].y  * h;
-          const mIX  = mirrored[8].x  * w, mIY  = mirrored[8].y  * h;
+          const mTX = mirrored[4].x * w, mTY = mirrored[4].y * h;
+          const mIX = mirrored[8].x * w, mIY = mirrored[8].y * h;
           const mMDX = mirrored[12].x * w, mMDY = mirrored[12].y * h;
-          const midX = (mTX + mIX) / 2,   midY = (mTY + mIY) / 2;
+          const midX = (mTX + mIX) / 2, midY = (mTY + mIY) / 2;
           const ratio = al / w;
-          const dotR  = Math.max(0.8, w * ratio * 0.07);
-          const midR  = Math.max(1,   w * ratio * (isPinching ? 0.11 : 0.08));
-          ctx.beginPath(); ctx.arc(mTX,  mTY,  dotR, 0, 2 * Math.PI);
+          const dotR = Math.max(0.8, w * ratio * 0.07);
+          const midR = Math.max(1, w * ratio * (isPinching ? 0.11 : 0.08));
+          ctx.beginPath(); ctx.arc(mTX, mTY, dotR, 0, 2 * Math.PI);
           ctx.fillStyle = '#FF00FF'; ctx.fill();
-          ctx.beginPath(); ctx.arc(mIX,  mIY,  dotR, 0, 2 * Math.PI);
+          ctx.beginPath(); ctx.arc(mIX, mIY, dotR, 0, 2 * Math.PI);
           ctx.fillStyle = '#00FF88'; ctx.fill();
           ctx.beginPath(); ctx.arc(mMDX, mMDY, dotR, 0, 2 * Math.PI);
           ctx.fillStyle = '#FFD700'; ctx.fill();
           ctx.beginPath(); ctx.arc(midX, midY, midR, 0, 2 * Math.PI);
           ctx.globalAlpha = isPinching ? 0.9 : 0.6;
-          ctx.fillStyle   = isPinching ? '#ffffff' : '#00FFFF';
+          ctx.fillStyle = isPinching ? '#ffffff' : '#00FFFF';
           ctx.fill();
           ctx.globalAlpha = 1;
         }
@@ -500,7 +500,7 @@ const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings
       cameraRef.current?.stop(); cameraRef.current = null;
       handsRef.current?.close?.(); handsRef.current = null;
       smoothedRef.current = {};
-      slotsRef.current    = makeEmptySlots();
+      slotsRef.current = makeEmptySlots();
       isProcessingRef.current = false;
       frameLimiterRef.current.lastSent = 0;
       cameraFpsRef.current.value = 0;
@@ -546,7 +546,7 @@ const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings
                 procCanvasRef, procCtxRef,
                 currentCfg.processing,
               );
-              try   { await handsRef.current?.send({ image: src }); }
+              try { await handsRef.current?.send({ image: src }); }
               finally { isProcessingRef.current = false; }
             },
             width: cfg.camera.width, height: cfg.camera.height,
@@ -651,15 +651,15 @@ const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings
   useEffect(() => {
     if (!dragging) return;
     const move = (e) => setPreviewPos({
-      x: Math.max(0, Math.min(e.clientX - dragOrigin.x, window.innerWidth  - 272)),
+      x: Math.max(0, Math.min(e.clientX - dragOrigin.x, window.innerWidth - 272)),
       y: Math.max(0, Math.min(e.clientY - dragOrigin.y, window.innerHeight - 200)),
     });
     const up = () => setDragging(false);
     document.addEventListener('mousemove', move);
-    document.addEventListener('mouseup',   up);
+    document.addEventListener('mouseup', up);
     return () => {
       document.removeEventListener('mousemove', move);
-      document.removeEventListener('mouseup',   up);
+      document.removeEventListener('mouseup', up);
     };
   }, [dragging, dragOrigin]);
 

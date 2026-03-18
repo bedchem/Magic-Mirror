@@ -13,17 +13,17 @@ function getTime() {
   const s = parseInt(opt({ second: "2-digit" }), 10);
 
   return {
-    h:    String(isNaN(h) ? 0 : h).padStart(2, "0"),
-    m:    String(isNaN(m) ? 0 : m).padStart(2, "0"),
-    s:    isNaN(s) ? 0 : s,
-    day:  opt({ weekday: "long" }),
+    h: String(isNaN(h) ? 0 : h).padStart(2, "0"),
+    m: String(isNaN(m) ? 0 : m).padStart(2, "0"),
+    s: isNaN(s) ? 0 : s,
+    day: opt({ weekday: "long" }),
     date: opt({ day: "2-digit", month: "long", year: "numeric" }),
   };
 }
 
 function FlipDigit({ value, small }) {
-  const prev     = useRef(value);
-  const [key,    setKey]    = useState(0);
+  const prev = useRef(value);
+  const [key, setKey] = useState(0);
   const [outVal, setOutVal] = useState(value);
 
   useLayoutEffect(() => {
@@ -35,7 +35,7 @@ function FlipDigit({ value, small }) {
   }, [value]);
 
   const display = String(value).padStart(2, "0");
-  const out     = String(outVal).padStart(2, "0");
+  const out = String(outVal).padStart(2, "0");
 
   return (
     <div className={`dt-flip${small ? " dt-flip--sm" : ""}`}>
