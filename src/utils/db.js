@@ -19,7 +19,24 @@ export async function initDB() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       url TEXT NOT NULL,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
+    );
+
+    CREATE TABLE IF NOT EXISTS users (
+      uuid TEXT PRIMARY KEY,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS widget_positions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_uuid TEXT NOT NULL,
+      widget_id TEXT NOT NULL,
+      instance_id TEXT NOT NULL,
+      x REAL NOT NULL,
+      y REAL NOT NULL,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_uuid) REFERENCES users(uuid),
+      UNIQUE(user_uuid, instance_id)
+    );
   `);
 
   console.log('SQLite DB initialisiert:', dbPath);
@@ -40,30 +57,45 @@ export async function getSpotifyLinks() {
   return database.all('SELECT * FROM spotify_links ORDER BY created_at DESC');
 }
 
-/* add links
+export async function upsertUser(uuid) {
+  const database = getDB();
+  await database.run(
+    'INSERT OR IGNORE INTO users (uuid) VALUES (?)',
+    uuid
+  );
+  return database.get('SELECT * FROM users WHERE uuid = ?', uuid);
+}
 
-const links = [
-  "https://open.spotify.com/embed/track/5YwBaDW36fztKNnoiHQar3?utm_source=generator",
-  "https://open.spotify.com/embed/track/0OaacUi36UrMb1kEsLWW9E?utm_source=generator",
-  "https://open.spotify.com/embed/track/4Nh7Umpl8YPFPcggcby6JW?utm_source=generator",
-  "https://open.spotify.com/embed/track/58AFokYCv4jdJ2T0hEoQ2r?utm_source=generator",
-  "https://open.spotify.com/embed/track/5cF0dROlMOK5uNZtivgu50?utm_source=generator",
-  "https://open.spotify.com/embed/track/5ehgf6op0j2sE4lqjiTkMY?utm_source=generator",
-  "https://open.spotify.com/embed/track/72LSGNDLY4sdvyrGIKtd2Q?utm_source=generator",
-  "https://open.spotify.com/embed/track/1ZiCTRaAxZBf0GoiGhkiRp?utm_source=generator"
-];
+export async function getUser(uuid) {
+  const database = getDB();
+  return database.get('SELECT * FROM users WHERE uuid = ?', uuid);
+}
 
-links.forEach(url => {
-  fetch('http://localhost:3000/api/spotify-links', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ url })
-  })
-    .then(res => res.json())
-    .then(data => console.log('Gespeichert:', url, data))
-    .catch(err => console.error(err));
-});
+export async function saveWidgetPositions(userUuid, widgets) {
+  const database = getDB();
+  for (const w of widgets) {
+    await database.run(
+      `INSERT INTO widget_positions (user_uuid, widget_id, instance_id, x, y, updated_at)
+       VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+       ON CONFLICT(user_uuid, instance_id)
+       DO UPDATE SET x = excluded.x, y = excluded.y, updated_at = excluded.updated_at`,
+      userUuid, w.widgetId, w.id, w.x, w.y
+    );
+  }
+}
 
-*/
+export async function getWidgetPositions(userUuid) {
+  const database = getDB();
+  return database.all(
+    'SELECT * FROM widget_positions WHERE user_uuid = ? ORDER BY updated_at ASC',
+    userUuid
+  );
+}
+
+export async function deleteWidgetPosition(userUuid, instanceId) {
+  const database = getDB();
+  await database.run(
+    'DELETE FROM widget_positions WHERE user_uuid = ? AND instance_id = ?',
+    userUuid, instanceId
+  );
+}

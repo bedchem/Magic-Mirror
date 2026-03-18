@@ -44,7 +44,6 @@ function DraggableWidget({ instance, onMouseDragStart, isBeingDragged, handPosit
                 onMouseDown={e => { onFocusWidget(); onMouseDragStart(e, instance.id); }}
             >
                 <span className="draggable-widget__title">{label}</span>
-
             </div>
             <div className="draggable-widget__content">
                 <Component
@@ -66,17 +65,38 @@ function clampPos(x, y, instanceId) {
     return { x: cx, y: cy };
 }
 
-export default function WidgetDragManager({ handPositions = {}, spawnRef }) {
+export default function WidgetDragManager({ handPositions = {}, spawnRef, initialWidgets = [], onWidgetsChange, onWidgetRemoved }) {
     const [activeWidgets, setActiveWidgets] = useState([]);
     const [focusOrder,    setFocusOrder]    = useState([]);
     const [dragging,      setDragging]      = useState(null);
     const [trashOver,     setTrashOver]     = useState(false);
 
-    const nextId       = useRef(1);
-    const mouseDragRef = useRef(null);
-    const handDragRef  = useRef(null);
-    const wasPinching  = useRef({});
-    const pinchFocused = useRef({});
+    const nextId           = useRef(1);
+    const mouseDragRef     = useRef(null);
+    const handDragRef      = useRef(null);
+    const wasPinching      = useRef({});
+    const pinchFocused     = useRef({});
+    const initializedRef   = useRef(false);
+    const activeWidgetsRef = useRef([]);
+
+    useEffect(() => {
+        if (initializedRef.current) return;
+        if (!initialWidgets.length) return;
+        initializedRef.current = true;
+        const restored = initialWidgets.map(w => {
+            const id = w.id || `w${nextId.current++}`;
+            const num = parseInt(id.replace('w', ''));
+            if (!isNaN(num) && num >= nextId.current) nextId.current = num + 1;
+            return { id, widgetId: w.widgetId, x: w.x, y: w.y };
+        });
+        activeWidgetsRef.current = restored;
+        setActiveWidgets(restored);
+        setFocusOrder(restored.map(w => w.id));
+    }, [initialWidgets]);
+
+    const notify = useCallback((widgets) => {
+        onWidgetsChange?.(widgets);
+}, []);
 
     const bringToFront = useCallback((instanceId) => {
         setFocusOrder(prev => {
@@ -87,27 +107,41 @@ export default function WidgetDragManager({ handPositions = {}, spawnRef }) {
 
     const spawnWidget = useCallback((widgetId) => {
         setActiveWidgets(prev => {
-            if (prev.some(w => w.widgetId === widgetId)) return prev;
+            // Prevent duplicates if a hand-triggered spawn happens while restored widgets are still hydrating.
+            if (prev.some(w => w.widgetId === widgetId) || initialWidgets.some(w => w.widgetId === widgetId)) return prev;
             const id = `w${nextId.current++}`;
             setFocusOrder(order => [...order, id]);
-            return [...prev, {
+            const next = [...prev, {
                 id, widgetId,
                 x: Math.max(0, (window.innerWidth  - 320) / 2),
                 y: Math.max(0, (window.innerHeight - 400) / 2),
             }];
+            activeWidgetsRef.current = next;
+            notify(next);
+            return next;
         });
-    }, []);
+    }, [notify, initialWidgets]);
 
     useEffect(() => { if (spawnRef) spawnRef.current = spawnWidget; }, [spawnRef, spawnWidget]);
 
     const removeWidget = useCallback((id) => {
-        setActiveWidgets(prev => prev.filter(w => w.id !== id));
+        setActiveWidgets(prev => {
+            const next = prev.filter(w => w.id !== id);
+            activeWidgetsRef.current = next;
+            notify(next);
+            return next;
+        });
         setFocusOrder(prev => prev.filter(f => f !== id));
-    }, []);
+        onWidgetRemoved?.(id);
+    }, [notify, onWidgetRemoved]);
 
     const moveWidget = useCallback((id, x, y) => {
         const { x: cx, y: cy } = clampPos(x, y, id);
-        setActiveWidgets(prev => prev.map(w => w.id === id ? { ...w, x: cx, y: cy } : w));
+        setActiveWidgets(prev => {
+            const next = prev.map(w => w.id === id ? { ...w, x: cx, y: cy } : w);
+            activeWidgetsRef.current = next;
+            return next;
+        });
     }, []);
 
     const handleMouseDragStart = useCallback((e, instanceId) => {
@@ -126,23 +160,30 @@ export default function WidgetDragManager({ handPositions = {}, spawnRef }) {
         if (!dragging || dragging.source !== 'mouse') return;
         const ref = mouseDragRef.current;
         if (!ref) return;
+
         const onMove = (e) => {
             moveWidget(ref.instanceId, e.clientX - ref.offsetX, e.clientY - ref.offsetY);
             setTrashOver(e.clientY > window.innerHeight - TRASH_HEIGHT);
         };
+
         const onUp = (e) => {
-            if (e.clientY > window.innerHeight - TRASH_HEIGHT) removeWidget(ref.instanceId);
+            if (e.clientY > window.innerHeight - TRASH_HEIGHT) {
+                removeWidget(ref.instanceId);
+            } else {
+                notify(activeWidgetsRef.current);
+            }
             mouseDragRef.current = null;
             setDragging(null);
             setTrashOver(false);
         };
+
         document.addEventListener('mousemove', onMove);
         document.addEventListener('mouseup',   onUp);
         return () => {
             document.removeEventListener('mousemove', onMove);
             document.removeEventListener('mouseup',   onUp);
         };
-    }, [dragging, moveWidget, removeWidget]);
+    }, [dragging, moveWidget, removeWidget, notify]);
 
     const prevHoverEls = useRef(new Set());
     const updateHover  = useCallback((hx, hy) => {
@@ -163,7 +204,11 @@ export default function WidgetDragManager({ handPositions = {}, spawnRef }) {
             const releaseHand = () => {
                 if (handDragRef.current?.handIndex === handIndex) {
                     const { instanceId } = handDragRef.current;
-                    if (hy > window.innerHeight - TRASH_HEIGHT) removeWidget(instanceId);
+                    if (hy > window.innerHeight - TRASH_HEIGHT) {
+                        removeWidget(instanceId);
+                    } else {
+                        notify(activeWidgetsRef.current);
+                    }
                     handDragRef.current = null;
                     setDragging(null);
                     setTrashOver(false);
@@ -182,7 +227,6 @@ export default function WidgetDragManager({ handPositions = {}, spawnRef }) {
             const wasPinch = wasPinching.current[handIndex];
 
             if (isPinching) {
-
                 if (handDragRef.current?.handIndex === handIndex) {
                     const { instanceId, offsetX, offsetY } = handDragRef.current;
                     moveWidget(instanceId, hx - offsetX, hy - offsetY);
@@ -228,7 +272,7 @@ export default function WidgetDragManager({ handPositions = {}, spawnRef }) {
                         const instEl = headerEl.closest('[data-widget-instance]');
                         const iid    = instEl?.dataset?.widgetInstance;
                         if (iid) {
-                            const w = activeWidgets.find(w => w.id === iid);
+                            const w = activeWidgetsRef.current.find(w => w.id === iid);
                             if (w) {
                                 handDragRef.current = {
                                     instanceId: iid,
@@ -241,14 +285,13 @@ export default function WidgetDragManager({ handPositions = {}, spawnRef }) {
                         }
                     }
                 }
-
             } else {
                 releaseHand();
             }
 
             wasPinching.current[handIndex] = isPinching;
         }
-    }, [handPositions, activeWidgets, moveWidget, removeWidget, updateHover, bringToFront]);
+    }, [handPositions, moveWidget, removeWidget, updateHover, bringToFront, notify]);
 
     const sortedWidgets = [...activeWidgets].sort((a, b) => {
         const ai = focusOrder.indexOf(a.id);

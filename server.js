@@ -10,7 +10,8 @@ import { addSpotifyLink, getSpotifyLinks } from './src/utils/db.js';
 import sharp from 'sharp';
 import crypto from 'crypto';
 import { spawn } from 'node:child_process';
-
+import { upsertUser, getUser, saveWidgetPositions, getWidgetPositions, deleteWidgetPosition } from './src/utils/db.js';
+ 
 dotenv.config({ path: resolve(dirname(fileURLToPath(import.meta.url)), '.env') });
 
 await initDB();
@@ -67,7 +68,7 @@ function getFallbackCompliment() {
 
 app.use(cors({
   origin: 'http://localhost:5173',
-  methods: ['GET', 'POST'],
+  methods: ['GET', 'POST', 'DELETE'],
   allowedHeaders: ['Content-Type']
 }));
 
@@ -160,7 +161,60 @@ async function fetchSpotifyTrackMetadata(url) {
     return buildSpotifyMetadataFallback(url);
   }
 }
-
+app.post('/api/users', express.json(), async (req, res) => {
+  const { uuid } = req.body;
+  if (!uuid) return res.status(400).json({ error: 'UUID fehlt' });
+  try {
+    const user = await upsertUser(uuid);
+    res.json(user);
+  } catch (err) {
+    console.error('User upsert Fehler:', err);
+    res.status(500).json({ error: 'Kann User nicht speichern' });
+  }
+});
+ 
+app.get('/api/users/:uuid', async (req, res) => {
+  try {
+    const user = await getUser(req.params.uuid);
+    if (!user) return res.status(404).json({ error: 'User nicht gefunden' });
+    res.json(user);
+  } catch (err) {
+    console.error('User get Fehler:', err);
+    res.status(500).json({ error: 'Kann User nicht laden' });
+  }
+});
+ 
+app.get('/api/widget-positions/:uuid', async (req, res) => {
+  try {
+    const positions = await getWidgetPositions(req.params.uuid);
+    res.json(positions);
+  } catch (err) {
+    console.error('Widget positions get Fehler:', err);
+    res.status(500).json({ error: 'Kann Positionen nicht laden' });
+  }
+});
+ 
+app.post('/api/widget-positions/:uuid', express.json(), async (req, res) => {
+  const { widgets } = req.body;
+  if (!Array.isArray(widgets)) return res.status(400).json({ error: 'widgets Array fehlt' });
+  try {
+    await saveWidgetPositions(req.params.uuid, widgets);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Widget positions save Fehler:', err);
+    res.status(500).json({ error: 'Kann Positionen nicht speichern' });
+  }
+});
+ 
+app.delete('/api/widget-positions/:uuid/:instanceId', async (req, res) => {
+  try {
+    await deleteWidgetPosition(req.params.uuid, req.params.instanceId);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Widget position delete Fehler:', err);
+    res.status(500).json({ error: 'Kann Position nicht löschen' });
+  }
+});
 app.get('/api/test', (req, res) => {
   res.send('Server is running!');
 });
