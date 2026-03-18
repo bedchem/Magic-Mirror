@@ -119,7 +119,16 @@ const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings
   const sensitivityRef     = useRef(1);
   const cameraRef          = useRef(null);
   const handsRef           = useRef(null);
+  const runtimeConfigRef   = useRef(getHandTrackingRuntimeConfig(settings));
   const fpsRef             = useRef({ value: 0, last: performance?.now?.() ?? Date.now() });
+  const cameraFpsRef       = useRef({
+    value: 0,
+    lastNow: 0,
+    lastFrames: null,
+    callbackId: null,
+    fallback: 0,
+  });
+  const frameLimiterRef    = useRef({ lastSent: 0 });
   const slotsRef           = useRef(makeEmptySlots());
 
   const [previewPos, setPreviewPos] = useState({ x: 16, y: 16 });
@@ -133,6 +142,7 @@ const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings
 
   useEffect(() => {
     settingsRef.current    = settings;
+    runtimeConfigRef.current = getHandTrackingRuntimeConfig(settings);
     showPreviewRef.current = settings.showPreview || false;
     smoothingRef.current   = clampVal(settings.smoothing,   0,    0.95, 0);
     sensitivityRef.current = clampVal(settings.sensitivity, 0.25, 3,    1);
@@ -165,6 +175,12 @@ const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings
       FPS_SMOOTH * fpsRef.current.value +
       (1 - FPS_SMOOTH) * (elapsed > 0 ? 1000 / elapsed : 0);
 
+    const measuredCameraFps = cameraFpsRef.current.value;
+    const fallbackCameraFps = cameraFpsRef.current.fallback;
+    const displayFps = measuredCameraFps > 0
+      ? measuredCameraFps
+      : (fallbackCameraFps > 0 ? fallbackCameraFps : fpsRef.current.value);
+
     if (showPreviewRef.current) {
       ctx.save();
       ctx.translate(w, 0); ctx.scale(-1, 1);
@@ -172,12 +188,12 @@ const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings
       ctx.drawImage(video, 0, 0, w, h);
       ctx.restore();
       ctx.save();
-      ctx.fillStyle = 'rgba(0,0,0,0.5)';
-      ctx.fillRect(10, 10, 92, 28);
+      ctx.fillStyle = 'rgba(0,0,0,0.65)';
+      ctx.fillRect(10, 10, 300, 48);
       ctx.fillStyle = '#fff';
-      ctx.font = '14px "Segoe UI",Arial,sans-serif';
+      ctx.font = 'bold 54px "Segoe UI",Arial,sans-serif';
       ctx.textBaseline = 'middle';
-      ctx.fillText(`FPS: ${fpsRef.current.value.toFixed(1)}`, 18, 24);
+      ctx.fillText(`FPS: ${displayFps.toFixed(1)}`, 20, 34);
       ctx.restore();
     }
 
@@ -486,6 +502,15 @@ const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings
       smoothedRef.current = {};
       slotsRef.current    = makeEmptySlots();
       isProcessingRef.current = false;
+      frameLimiterRef.current.lastSent = 0;
+      cameraFpsRef.current.value = 0;
+      cameraFpsRef.current.lastNow = 0;
+      cameraFpsRef.current.lastFrames = null;
+      cameraFpsRef.current.fallback = 0;
+      if (videoRef.current?.cancelVideoFrameCallback && cameraFpsRef.current.callbackId !== null) {
+        videoRef.current.cancelVideoFrameCallback(cameraFpsRef.current.callbackId);
+      }
+      cameraFpsRef.current.callbackId = null;
       posCallbackRef.current?.({ detected: false, handIndex: 0 });
       posCallbackRef.current?.({ detected: false, handIndex: 1 });
       return;
@@ -495,7 +520,7 @@ const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings
     const init = async () => {
       try {
         const hands = new Hands({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
-        const cfg = getHandTrackingRuntimeConfig(settingsRef.current);
+        const cfg = runtimeConfigRef.current;
         hands.setOptions({ ...cfg.options, maxNumHands: 1 });
         hands.onResults(onResults);
         if (dead) { hands.close?.(); return; }
@@ -505,11 +530,21 @@ const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings
           const cam = new Camera(videoRef.current, {
             onFrame: async () => {
               if (isProcessingRef.current) return;
+
+              const currentCfg = runtimeConfigRef.current;
+              const maxFps = currentCfg?.maxFrameRate;
+              if (Number.isFinite(maxFps) && maxFps > 0) {
+                const now = performance?.now?.() ?? Date.now();
+                const minDelta = 1000 / maxFps;
+                if (now - frameLimiterRef.current.lastSent < minDelta) return;
+                frameLimiterRef.current.lastSent = now;
+              }
+
               isProcessingRef.current = true;
               const src = preprocessVideoFrame(
                 videoRef.current, settingsRef.current,
                 procCanvasRef, procCtxRef,
-                getHandTrackingRuntimeConfig(settingsRef.current).processing,
+                currentCfg.processing,
               );
               try   { await handsRef.current?.send({ image: src }); }
               finally { isProcessingRef.current = false; }
@@ -523,6 +558,59 @@ const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings
 
           const videoEl = videoRef.current;
           if (videoEl) {
+            const stream = videoEl.srcObject;
+            const track = stream?.getVideoTracks?.()?.[0];
+            const trackFps = Number(track?.getSettings?.()?.frameRate);
+            if (Number.isFinite(trackFps) && trackFps > 0) {
+              cameraFpsRef.current.fallback = trackFps;
+            }
+            if (track?.applyConstraints) {
+              try {
+                const constraints = {
+                  width: { ideal: cfg.camera.width },
+                  height: { ideal: cfg.camera.height },
+                };
+                if (cfg.maxFrameRate) {
+                  constraints.frameRate = { ideal: cfg.maxFrameRate, max: cfg.maxFrameRate };
+                }
+                await track.applyConstraints(constraints);
+              } catch (err) {
+                console.warn('Camera constraint optimization skipped:', err);
+              }
+            }
+
+            if (typeof videoEl.requestVideoFrameCallback === 'function') {
+              const onVideoFrame = (_now, metadata) => {
+                if (dead) return;
+
+                const now = performance?.now?.() ?? Date.now();
+                const frames = Number(metadata?.presentedFrames);
+
+                if (
+                  Number.isFinite(frames) &&
+                  cameraFpsRef.current.lastFrames !== null &&
+                  cameraFpsRef.current.lastNow > 0
+                ) {
+                  const dFrames = frames - cameraFpsRef.current.lastFrames;
+                  const dTimeMs = now - cameraFpsRef.current.lastNow;
+                  if (dFrames > 0 && dTimeMs > 0) {
+                    const instFps = (dFrames * 1000) / dTimeMs;
+                    cameraFpsRef.current.value =
+                      FPS_SMOOTH * cameraFpsRef.current.value +
+                      (1 - FPS_SMOOTH) * instFps;
+                  }
+                }
+
+                if (Number.isFinite(frames)) {
+                  cameraFpsRef.current.lastFrames = frames;
+                }
+                cameraFpsRef.current.lastNow = now;
+                cameraFpsRef.current.callbackId = videoEl.requestVideoFrameCallback(onVideoFrame);
+              };
+
+              cameraFpsRef.current.callbackId = videoEl.requestVideoFrameCallback(onVideoFrame);
+            }
+
             if (videoEl.readyState >= 2) {
               videoReadyRef.current?.(videoEl);
             } else {
@@ -541,12 +629,21 @@ const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings
       cameraRef.current?.stop(); cameraRef.current = null;
       handsRef.current?.close?.(); handsRef.current = null;
       isProcessingRef.current = false;
+      frameLimiterRef.current.lastSent = 0;
+      cameraFpsRef.current.value = 0;
+      cameraFpsRef.current.lastNow = 0;
+      cameraFpsRef.current.lastFrames = null;
+      cameraFpsRef.current.fallback = 0;
+      if (videoRef.current?.cancelVideoFrameCallback && cameraFpsRef.current.callbackId !== null) {
+        videoRef.current.cancelVideoFrameCallback(cameraFpsRef.current.callbackId);
+      }
+      cameraFpsRef.current.callbackId = null;
     };
   }, [isEnabled, settings.preprocessingQuality, onResults]);
 
   useEffect(() => {
     if (handsRef.current) {
-      const cfg = getHandTrackingRuntimeConfig(settingsRef.current);
+      const cfg = runtimeConfigRef.current;
       handsRef.current.setOptions({ ...cfg.options, maxNumHands: 1 });
     }
   }, [settings.minDetectionConfidence, settings.minTrackingConfidence, settings.preprocessingQuality]);
