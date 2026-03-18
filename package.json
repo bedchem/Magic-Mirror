@@ -25,6 +25,7 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.13.1",
+    "sharp": "^0.34.5",
     "sqlite": "^5.1.1",
     "sqlite3": "^6.0.1"
   },

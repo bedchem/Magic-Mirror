@@ -1,4 +1,3 @@
-// server.js
 import dotenv from 'dotenv';
 import express from 'express';
 import multer from 'multer';
@@ -8,6 +7,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { initDB } from './src/utils/db.js';
 import { addSpotifyLink, getSpotifyLinks } from './src/utils/db.js';
+import sharp from 'sharp';
 
 dotenv.config({ path: resolve(dirname(fileURLToPath(import.meta.url)), '.env') });
 
@@ -152,7 +152,11 @@ app.post('/api/compliment', upload.single('image'), async (req, res) => {
   console.log(`Image received: ${req.file.originalname}, size: ${req.file.size} bytes, mimetype: ${req.file.mimetype}`);
 
   try {
-    const base64 = req.file.buffer.toString('base64');
+    const resized = await sharp(req.file.buffer)
+  .resize(128)
+  .jpeg({ quality: 30 })
+  .toBuffer();
+    const base64 = resized.toString('base64');
     console.log('Converted to base64, length:', base64.length);
 
     console.log('Sending request to Ollama...');
@@ -174,8 +178,8 @@ app.post('/api/compliment', upload.single('image'), async (req, res) => {
           }
         ],
         options: {
-          temperature: 0.8,
-          num_predict: 40
+          temperature: 0.6,
+          num_predict: 20
         }
       })
     });
