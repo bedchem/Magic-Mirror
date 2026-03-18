@@ -11,14 +11,14 @@
     display: flex;
     align-items: stretch;
     overflow: hidden;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     margin: 0 auto;
+    border: 1px solid rgba(155, 92, 252, 0.2);
 }
 
 .sp-empty {
     align-items: center;
     justify-content: center;
-    color: #a7a7a7;
+    color: rgba(255, 255, 255, 0.35);
     font-size: 14px;
     height: 120px;
 }
@@ -38,7 +38,7 @@
 }
 
 .sp-cover-placeholder {
-    background: #2a2a2a;
+    background: rgba(30, 30, 45, 0.9);
     width: 120px;
     height: 120px;
 }
@@ -50,6 +50,7 @@
     justify-content: space-between;
     padding: 12px 16px;
     min-width: 0;
+    background: rgba(20, 20, 30, 0.95);
 }
 
 .sp-titles {
@@ -69,7 +70,7 @@
 }
 
 .sp-artist {
-    color: #a7a7a7;
+    color: rgba(255, 255, 255, 0.45);
     font-size: 12px;
     white-space: nowrap;
     overflow: hidden;
@@ -85,7 +86,7 @@
 .sp-progress-bar {
     width: 100%;
     height: 3px;
-    background: #3e3e3e;
+    background: rgba(255, 255, 255, 0.1);
     border-radius: 2px;
     overflow: hidden;
     cursor: pointer;
@@ -93,7 +94,7 @@
 
 .sp-progress-fill {
     height: 100%;
-    background: #1e74d7;
+    background: linear-gradient(90deg, #9b5cfc, #e823fa);
     border-radius: 2px;
     transition: width 1s linear;
 }
@@ -101,7 +102,7 @@
 .sp-time-labels {
     display: flex;
     justify-content: space-between;
-    color: #a7a7a7;
+    color: rgba(255, 255, 255, 0.35);
     font-size: 11px;
 }
 
@@ -112,19 +113,22 @@
 }
 
 .sp-btn {
-    background: none;
+    background: rgba(50, 50, 70, 0.8);
     border: none;
-    color: #a7a7a7;
+    border-radius: 8px;
+    color: rgba(255, 255, 255, 0.6);
     cursor: pointer;
-    padding: 0;
+    padding: 4px 6px;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: color 0.15s;
+    transition: background 0.15s, color 0.15s, box-shadow 0.2s;
 }
 
 .sp-btn:hover {
+    background: rgba(100, 80, 150, 0.8);
     color: #ffffff;
+    box-shadow: 0 0 10px rgba(155, 92, 252, 0.3);
 }
 
 .sp-btn:active {
@@ -132,27 +136,30 @@
 }
 
 .sp-btn:disabled {
-    color: #5e5e5e;
+    opacity: 0.3;
     cursor: not-allowed;
-    opacity: 0.6;
 }
 
 .sp-btn:disabled:hover {
-    color: #5e5e5e;
+    background: rgba(50, 50, 70, 0.8);
+    color: rgba(255, 255, 255, 0.6);
+    box-shadow: none;
 }
 
 .sp-btn-play {
     width: 32px;
     height: 32px;
     border-radius: 50%;
-    background: #ffffff;
-    color: #000000;
+    background: #9b5cfc;
+    color: #ffffff;
     border: none;
     flex-shrink: 0;
+    box-shadow: 0 0 16px rgba(155, 92, 252, 0.4);
 }
 
 .sp-btn-play:hover {
-    background: #e8e8e8;
-    color: #000000;
+    background: #b07cff;
+    color: #ffffff;
     transform: scale(1.05);
+    box-shadow: 0 0 20px rgba(155, 92, 252, 0.6);
 }

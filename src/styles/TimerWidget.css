@@ -1,7 +1,7 @@
 .t-app {
   width: 400px;
   height: 400px;
-  color: #fff;
+  color: #ffffff;
   position: relative;
   overflow: hidden;
   flex-shrink: 0;
@@ -40,9 +40,8 @@
   padding: 22px 28px 14px;
 }
 
-
 .t-bar-start {
-  background-color: #1e3557;
+  background: rgba(50, 50, 70, 0.8);
   width: 80px;
   height: 40px;
   border-radius: 8px;
@@ -50,13 +49,21 @@
   font-size: 17px;
   font-weight: 600;
   cursor: pointer;
-  color: #0a84ff;
+  color: #c9b8f0;
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+}
+
+.t-bar-start:hover {
+  background: #9b5cfc;
+  color: #ffffff;
+  box-shadow: 0 0 16px rgba(155, 92, 252, 0.4);
 }
 
 .t-bar-start:disabled {
-  color: rgba(10, 132, 255, 0.3);
-  background-color: #1e35579f;
+  color: rgba(201, 184, 240, 0.25);
+  background: rgba(50, 50, 70, 0.4);
   cursor: default;
+  box-shadow: none;
 }
 
 .t-picker {
@@ -75,8 +82,11 @@
   width: 80%;
   height: 40px;
   border-radius: 10px;
+  background: rgba(155, 92, 252, 0.1);
+  border: 1px solid rgba(155, 92, 252, 0.25);
   pointer-events: none;
   z-index: 4;
+  top: 39.5%;
 }
 
 .t-drums {
@@ -116,18 +126,18 @@
   text-align: center;
   font-size: 22px;
   font-weight: 300;
-  color: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.18);
   transition: color 0.1s, font-size 0.1s;
 }
 
 .t-drum-item.sel {
-  color: #fff;
+  color: #ffffff;
   font-size: 24px;
   font-weight: 400;
 }
 
 .t-drum-item.near {
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.45);
 }
 
 .t-fade-top {
@@ -152,14 +162,14 @@
 
 .t-drum-sep {
   font-size: 24px;
-  color: rgba(255, 255, 255, 0.5);
-  padding-bottom: 22px;
+  color: rgba(155, 92, 252, 0.5);
+  padding-bottom: 30px;
   align-self: center;
 }
 
 .t-drum-label {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.38);
+  color: rgba(255, 255, 255, 0.3);
   margin-top: 7px;
   letter-spacing: 0.3px;
 }
@@ -184,7 +194,7 @@
   font-size: 68px;
   font-weight: 100;
   letter-spacing: -3px;
-  fill: #fff;
+  fill: #ffffff;
 }
 
 .t-btns {
@@ -202,7 +212,7 @@
   font-size: 17px;
   font-weight: 500;
   cursor: pointer;
-  transition: opacity 0.08s, transform 0.08s;
+  transition: opacity 0.08s, transform 0.08s, box-shadow 0.2s;
 }
 
 .t-btn:active {
@@ -216,26 +226,49 @@
 }
 
 .t-btn-cancel {
-  background: #1c1c1e;
-  color: #fff;
+  background: rgba(50, 50, 70, 0.8);
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.t-btn-cancel:hover {
+  background: rgba(80, 80, 100, 0.8);
+  color: #ffffff;
 }
 
 .t-btn-pause {
-  background: #1e3557;
-  color: #0a84ff;
+  background: rgba(50, 50, 70, 0.8);
+  color: #c9b8f0;
+}
+
+.t-btn-pause:hover {
+  background: #9b5cfc;
+  color: #ffffff;
+  box-shadow: 0 0 14px rgba(155, 92, 252, 0.4);
 }
 
 .t-btn-resume {
-  background: #0a84ff;
-  color: #fff;
+  background: #9b5cfc;
+  color: #ffffff;
+  box-shadow: 0 0 14px rgba(155, 92, 252, 0.35);
 }
 
+.t-btn-resume:hover {
+  background: #b07cff;
+  box-shadow: 0 0 20px rgba(155, 92, 252, 0.5);
+}
 
 .t-ring-time.done {
   animation: t-time-blink 2s ease-in-out infinite;
 }
 
 @keyframes t-time-blink {
-  0%, 100% { fill: #ff675f; }
-  50%       { fill: #ffcdcd; }
+
+  0%,
+  100% {
+    fill: #e823fa;
+  }
+
+  50% {
+    fill: #c9b8f0;
+  }
 }

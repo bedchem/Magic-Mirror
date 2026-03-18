@@ -15,7 +15,7 @@
     width: 28px;
     height: 28px;
     object-fit: contain;
-    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
+    filter: drop-shadow(0 0 6px rgba(155, 92, 252, 0.3));
 }
 
 .wetter-temp {
@@ -23,14 +23,14 @@
     font-weight: 700;
     letter-spacing: -0.5px;
     line-height: 1;
-    color: var(--text-primary, #fff);
+    color: #ffffff;
 }
 
 .wetter-desc {
     font-size: 0.65rem;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    opacity: 0.6;
+    color: rgba(255, 255, 255, 0.5);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -39,7 +39,7 @@
 
 .wetter-location {
     font-size: 0.6rem;
-    opacity: 0.45;
+    color: rgba(255, 255, 255, 0.3);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -51,7 +51,7 @@
     display: flex;
     flex-direction: column;
     gap: 1px;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    border-top: 1px solid rgba(155, 92, 252, 0.15);
     padding-top: 5px;
 }
 
@@ -65,7 +65,7 @@
 .wetter-day-name {
     font-size: 0.62rem;
     font-weight: 600;
-    opacity: 0.7;
+    color: rgba(255, 255, 255, 0.6);
     text-transform: uppercase;
     letter-spacing: 0.04em;
 }
@@ -79,23 +79,24 @@
 .wetter-day-max {
     font-size: 0.65rem;
     font-weight: 600;
+    color: rgb(150, 252, 110);
+
     text-align: right;
-    color: var(--text-primary, #fff);
 }
 
 .wetter-day-min {
     font-size: 0.62rem;
-    opacity: 0.45;
+    color: #f14e4e;
     text-align: right;
 }
 
 .wetter-loading,
 .wetter-error {
     font-size: 0.65rem;
-    opacity: 0.5;
+    color: rgba(255, 255, 255, 0.4);
     padding: 2px 0;
 }
 
 .wetter-error {
-    color: #ff6b6b;
+    color: #f87171;
 }

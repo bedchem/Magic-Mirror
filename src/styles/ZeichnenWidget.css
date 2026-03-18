@@ -5,8 +5,8 @@
   backdrop-filter: blur(4px);
   border-radius: 16px;
   padding: 12px;
-  color: #e0d6f5;
-  width: 680px;    
+  color: #ffffff;
+  width: 680px;
   box-sizing: border-box;
   user-select: none;
 }
@@ -34,7 +34,7 @@
   appearance: none;
   width: 140px;
   height: 6px;
-  background: #3a3a4e;
+  background: rgba(50, 50, 70, 0.8);
   border-radius: 3px;
   outline: none;
 }
@@ -48,7 +48,7 @@
   border-radius: 50%;
   cursor: pointer;
   transition: background 0.2s, transform 0.1s;
-  box-shadow: 0 0 8px #9b5cfc;
+  box-shadow: 0 0 8px rgba(155, 92, 252, 0.6);
 }
 
 .zeichnen-slider::-webkit-slider-thumb:hover {
@@ -64,7 +64,7 @@
   border-radius: 50%;
   cursor: pointer;
   transition: background 0.2s, transform 0.1s;
-  box-shadow: 0 0 8px #9b5cfc;
+  box-shadow: 0 0 8px rgba(155, 92, 252, 0.6);
 }
 
 .zeichnen-slider::-moz-range-thumb:hover {
@@ -77,8 +77,8 @@
   text-align: center;
   font-size: 0.9rem;
   font-weight: 600;
-  color: #c9b8f0;
-  background: #2a2a3a;
+  color: #ffffff;
+  background: rgba(50, 50, 70, 0.8);
   padding: 4px 6px;
   border-radius: 12px;
   line-height: 1;
@@ -112,7 +112,7 @@
 .zeichnen-btn.active {
   background: #9b5cfc;
   color: #ffffff;
-  box-shadow: 0 0 12px #9b5cfc;
+  box-shadow: 0 0 12px rgba(155, 92, 252, 0.5);
 }
 
 .zeichnen-btn svg {
@@ -124,11 +124,12 @@
 .zeichnen-canvas {
   width: 600px;
   height: auto;
-  background: #1a1a2e;
+  background: rgba(14, 14, 22, 0.95);
   border-radius: 12px;
   cursor: crosshair;
   display: block;
   touch-action: none;
+  border: 1px solid rgba(155, 92, 252, 0.15);
 }
 
 .zeichnen-content {
@@ -152,14 +153,14 @@
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.28);
+  border: 2px solid rgba(255, 255, 255, 0.2);
   cursor: pointer;
   transition: transform 0.12s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .zeichnen-color-btn:hover {
   transform: scale(1.08);
-  border-color: rgba(255, 255, 255, 0.7);
+  border-color: rgba(255, 255, 255, 0.65);
 }
 
 .zeichnen-color-btn.active {

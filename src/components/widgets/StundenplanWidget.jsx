@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import "/src/styles/StundenplanWidget.css";
 
 const DAYS = ["Mo", "Di", "Mi", "Do", "Fr"];
@@ -55,7 +55,7 @@ const DEFAULT_TIMETABLE = {
         { period: 1, subj: "Wi-He", detail: "ENGL", room: "c+2/03" },
         { period: 2, subj: "Wi-He", detail: "ENGL", room: "c+2/03" },
         { period: 3, subj: "Sch-Fi", detail: "Re-Wiku", room: "c+2/03" },
-        { period: 4, subj: "Sch-Fi", detail: "M8", room: "E-Lab, Inf II", change: true },
+        { period: 4, subj: "Kü-Ge", detail: "M8", room: "E-Lab, Inf II"},
         { period: 5, subj: "Kü-Ge", detail: "M8", room: "E-Lab, Inf II" },
         { period: 7, subj: "Pr-Ge", detail: "M5-M7", room: "Inf III" },
         { period: 8, subj: "Pr-Ge", detail: "M5-M7", room: "Inf III" },
@@ -150,7 +150,7 @@ function Lesson({ l, onEdit }) {
     );
 }
 
-export default function Stundenplan() {
+export default function Stundenplan({ handPositions = {} }) {
 
     const [off, setOff] = useState(0);
 
@@ -161,6 +161,15 @@ export default function Stundenplan() {
     const [editing, setEditing] = useState(null);
 
     const [slide, setSlide] = useState("active");
+
+    const contentRef = useRef(null);
+    const prevPinch = useRef({});
+    const pinchStart = useRef({});
+    const movedEnough = useRef({});
+    const handCanSwipe = useRef({});
+    const handLiveAnchor = useRef({});
+    const handSwipeConsumed = useRef({});
+    const isAnimatingRef = useRef(false);
 
     useEffect(() => {
 
@@ -183,6 +192,8 @@ export default function Stundenplan() {
     }, []);
 
     const navigate = useCallback((dir) => {
+        if (isAnimatingRef.current) return;
+        isAnimatingRef.current = true;
 
         setSlide(dir > 0 ? "exit-left" : "exit-right");
 
@@ -196,9 +207,93 @@ export default function Stundenplan() {
                 requestAnimationFrame(() => setSlide("active"))
             );
 
+            setTimeout(() => {
+                isAnimatingRef.current = false;
+            }, 80);
+
         }, 200);
 
     }, []);
+
+    const isPointInStundenplan = useCallback((x, y) => {
+        if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
+        if (x < 0 || y < 0 || x >= window.innerWidth || y >= window.innerHeight) return false;
+        if (!contentRef.current) return false;
+
+        const hits = document.elementsFromPoint(x, y);
+        return hits.some((el) => contentRef.current.contains(el));
+    }, []);
+
+    useEffect(() => {
+        for (const pos of Object.values(handPositions)) {
+            const {
+                handIndex,
+                detected,
+                palmVisible,
+                isPinching,
+                pinchMidX,
+                pinchMidY,
+                x: hx,
+                y: hy,
+            } = pos;
+            const tx = hx ?? pinchMidX;
+            const ty = hy ?? pinchMidY;
+            const was = prevPinch.current[handIndex];
+
+            if (!detected || palmVisible === false || !isPinching) {
+                pinchStart.current[handIndex] = null;
+                movedEnough.current[handIndex] = false;
+                handCanSwipe.current[handIndex] = false;
+                handLiveAnchor.current[handIndex] = null;
+                handSwipeConsumed.current[handIndex] = false;
+                prevPinch.current[handIndex] = false;
+                continue;
+            }
+
+            if (!was && tx != null && ty != null) {
+                pinchStart.current[handIndex] = { x: tx, y: ty };
+                movedEnough.current[handIndex] = false;
+                handCanSwipe.current[handIndex] = isPointInStundenplan(tx, ty);
+                handLiveAnchor.current[handIndex] = handCanSwipe.current[handIndex]
+                    ? { x: tx, y: ty }
+                    : null;
+                handSwipeConsumed.current[handIndex] = false;
+            }
+
+            const startPos = pinchStart.current[handIndex];
+            if (!startPos || tx == null || ty == null) {
+                prevPinch.current[handIndex] = isPinching;
+                continue;
+            }
+
+            if (!movedEnough.current[handIndex]) {
+                const moved = Math.hypot(tx - startPos.x, ty - startPos.y);
+                if (moved > 8) movedEnough.current[handIndex] = true;
+            }
+
+            if (
+                !movedEnough.current[handIndex]
+                || !handCanSwipe.current[handIndex]
+                || handSwipeConsumed.current[handIndex]
+            ) {
+                prevPinch.current[handIndex] = isPinching;
+                continue;
+            }
+
+            const anchor = handLiveAnchor.current[handIndex] ?? startPos;
+            const dx = tx - anchor.x;
+            const dy = ty - anchor.y;
+
+            if (Math.abs(dx) > 30 && Math.abs(dx) > Math.abs(dy)) {
+                if (dx < 0) navigate(1);
+                else navigate(-1);
+                handSwipeConsumed.current[handIndex] = true;
+                handLiveAnchor.current[handIndex] = { x: tx, y: ty };
+            }
+
+            prevPinch.current[handIndex] = isPinching;
+        }
+    }, [handPositions, isPointInStundenplan, navigate]);
 
     const mon = getMon(off);
     const fri = new Date(mon);
@@ -216,7 +311,6 @@ export default function Stundenplan() {
 
             <div className="sp-header">
 
-                <button className="sp-nav" onClick={() => navigate(-1)}>‹</button>
 
                 <div className="sp-header-center">
                     <span className="sp-week">
@@ -226,11 +320,10 @@ export default function Stundenplan() {
                     <span className="sp-clock">{clk}</span>
                 </div>
 
-                <button className="sp-nav" onClick={() => navigate(1)}>›</button>
 
             </div>
 
-            <div className="sp-body">
+            <div className="sp-body" ref={contentRef}>
 
                 <div className={`sp-slide ${slide}`}>
 

@@ -1,4 +1,3 @@
-
 .kal-widget {
   width: 300px;
   height: 100%;
@@ -6,7 +5,7 @@
   flex-direction: column;
   padding: 8px 0 4px;
   box-sizing: border-box;
-  color: #e0d6f5;
+  color: #ffffff;
   overflow: hidden;
   user-select: none;
 }
@@ -22,26 +21,29 @@
 
 .kal-title {
   font-size: 0.78rem;
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  color: #c9b8f0;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: #ffffff;
   text-transform: uppercase;
 }
 
 .kal-nav {
-  background: none;
+  background: rgba(50, 50, 70, 0.8);
   border: none;
-  color: #9b5cfc;
+  border-radius: 8px;
+  color: #c9b8f0;
   font-size: 1rem;
   cursor: pointer;
-  padding: 0 4px;
+  padding: 2px 8px;
   line-height: 1;
-  transition: color 0.15s;
+  transition: background 0.15s, color 0.15s, box-shadow 0.2s;
 }
 
 .kal-nav:hover,
 .kal-nav.hand-hover {
-  color: #e823fa;
+  background: rgba(100, 80, 150, 0.8);
+  color: #ffffff;
+  box-shadow: 0 0 12px rgba(155, 92, 252, 0.3);
 }
 
 .kal-vp {
@@ -49,7 +51,7 @@
   overflow: hidden;
   position: relative;
   cursor: grab;
-  border-radius: 8px;
+  border-radius: 12px;
 }
 
 .kal-vp:active {
@@ -137,29 +139,33 @@
 .kal-dow {
   font-size: 0.6rem;
   text-align: center;
-  color: #6b5a8a;
+  color: rgba(201, 184, 240, 0.5);
   letter-spacing: 0.04em;
   padding-bottom: 4px;
+  font-weight: 600;
+  text-transform: uppercase;
 }
 
 .kal-day {
   font-size: 0.7rem;
   text-align: center;
   padding: 3px 0;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: default;
+  color: #ffffff;
   transition: background 0.1s;
 }
 
 .kal-day:not(.kal-empty):hover {
-  background: rgba(155, 92, 252, 0.18);
+  background: rgba(155, 92, 252, 0.22);
 }
 
 .kal-today {
-  background: linear-gradient(135deg, #e823fa22, #9b5cfc44);
-  color: #e823fa;
-  font-weight: 600;
-  border: 1px solid #9b5cfc55;
+  background: linear-gradient(135deg, rgba(232, 35, 250, 0.2), rgba(155, 92, 252, 0.35));
+  color: #ffffff;
+  font-weight: 700;
+  border: 1px solid rgba(155, 92, 252, 0.5);
+  box-shadow: 0 0 10px rgba(155, 92, 252, 0.2);
 }
 
 .kal-empty {

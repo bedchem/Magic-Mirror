@@ -5,34 +5,40 @@
 
 .stocks-controls {
     display: block;
-    margin: 4px 0 10px;
+    margin: 5px 0 10px;
     overflow: hidden;
 }
 
 .stocks-timeframe-view {
     display: flex;
     gap: 10px;
-    align-items: center;
     justify-content: center;
 }
 
 .stocks-chip {
     border: none;
-    background: rgba(5, 35, 75, 0.932);
-    color: rgba(255, 255, 255, 0.9);
+    margin: 5px;
+    background: rgba(50, 50, 70, 0.8);
+    color: rgba(255, 255, 255, 0.7);
     border-radius: 999px;
-    padding: 12px 20px;
+    padding: 10px 20px;
     font-size: 0.68rem;
     font-weight: 600;
     letter-spacing: 0.03em;
     cursor: pointer;
+    transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+}
+
+.stocks-chip:hover {
+    background: rgba(100, 80, 150, 0.8);
+    color: #ffffff;
 }
 
 .stocks-chip[data-active="true"],
 .stocks-chip.hand-hover {
-    background: rgba(36, 118, 240, 0.712);
-    border: none;
-    color: #dceaff;
+    background: #9b5cfc;
+    color: #ffffff;
+    box-shadow: 0 0 14px rgba(155, 92, 252, 0.4);
 }
 
 .stocks-inner {
@@ -73,14 +79,14 @@
     font-size: 0.8rem;
     font-weight: 700;
     letter-spacing: 0.04em;
-    opacity: 0.9;
+    color: #ffffff;
 }
 
 .stocks-price {
     font-size: 0.78rem;
     font-weight: 600;
     text-align: right;
-    color: var(--text-primary, #fff);
+    color: #ffffff;
 }
 
 .stocks-change {
@@ -101,17 +107,17 @@
 .stocks-loading,
 .stocks-error {
     font-size: 0.75rem;
-    opacity: 0.5;
+    color: rgba(255, 255, 255, 0.4);
     padding: 2px 0;
 }
 
 .stocks-error {
-    color: #ff6b6b;
+    color: #f87171;
 }
 
 .stocks-hint {
     font-size: 0.64rem;
-    opacity: 0.3;
+    color: rgba(255, 255, 255, 0.25);
     letter-spacing: 0.04em;
 }
 

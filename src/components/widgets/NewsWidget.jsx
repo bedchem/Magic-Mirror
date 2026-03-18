@@ -10,9 +10,48 @@ function timeAgo(dateStr) {
   return `vor ${Math.floor(diff / 1440)} Tagen`;
 }
 
-function ArticleCard({ article }) {
+function ArticleModal({ article, onClose }) {
+  useEffect(() => {
+    const onKey = (e) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   return (
-    <a href={article.url} target="_blank" rel="noreferrer" className="nw-card">
+    <div className="nw-modal-backdrop" onClick={onClose}>
+      <div className="nw-modal" onClick={(e) => e.stopPropagation()}>
+        <button className="nw-modal-close" onClick={onClose}>✕</button>
+
+        {article.urlToImage && (
+          <img
+            src={article.urlToImage}
+            alt={article.title}
+            className="nw-modal-image"
+          />
+        )}
+
+        <div className="nw-modal-body">
+          <div className="nw-card-meta">
+            <span className="nw-card-source">{article.source}</span>
+            <span className="nw-card-time">{timeAgo(article.publishedAt)}</span>
+          </div>
+
+          <h2 className="nw-modal-title">{article.title}</h2>
+
+          {article.description && (
+            <p className="nw-modal-desc">{article.description}</p>
+          )}
+
+
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ArticleCard({ article, onClick }) {
+  return (
+    <div className="nw-card" data-nw-article-index={article.index} onClick={() => onClick(article)}>
       {article.urlToImage && (
         <img
           src={article.urlToImage}
@@ -34,27 +73,29 @@ function ArticleCard({ article }) {
           <p className="nw-card-desc">{article.description}</p>
         )}
       </div>
-    </a>
+    </div>
   );
 }
 
 export default function NewsWidget({ handPositions = {} }) {
   const [articles, setArticles] = useState([]);
   const [status, setStatus] = useState("loading");
+  const [selected, setSelected] = useState(null);
   const listRef = useRef(null);
   const prevYRef = useRef({});
   const activeScrollRef = useRef({});
+  const wasPinchingRef = useRef({});
 
   const fetchNews = useCallback(async () => {
     setStatus("loading");
-
     try {
       const res = await fetch(API_URL);
       if (!res.ok) throw new Error();
 
       const data = await res.json();
 
-      const mapped = data.news.map((a) => ({
+      const mapped = data.news.map((a, index) => ({
+        index,
         title: a.title,
         description: a.teaser,
         url: a.detailsweb,
@@ -62,7 +103,7 @@ export default function NewsWidget({ handPositions = {} }) {
           a.teaserImage?.imageVariants?.["16x9-512"] ||
           a.teaserImage?.imageVariants?.["16x9-256"],
         publishedAt: a.date,
-        source: "Tagesschau"
+        source: "Tagesschau",
       }));
 
       setArticles(mapped);
@@ -79,15 +120,11 @@ export default function NewsWidget({ handPositions = {} }) {
   useEffect(() => {
     for (const pos of Object.values(handPositions)) {
       const {
-        handIndex,
-        detected,
-        palmVisible,
-        isPinching,
-        pinchMidX,
-        pinchMidY,
-        x,
-        y,
+        handIndex, detected, palmVisible, isPinching,
+        pinchMidX, pinchMidY, x, y,
       } = pos;
+
+      const wasPinching = Boolean(wasPinchingRef.current[handIndex]);
 
       const tx = x ?? pinchMidX;
       const ty = y ?? pinchMidY;
@@ -95,36 +132,58 @@ export default function NewsWidget({ handPositions = {} }) {
       if (!detected || palmVisible === false || !isPinching) {
         activeScrollRef.current[handIndex] = false;
         prevYRef.current[handIndex] = null;
+        wasPinchingRef.current[handIndex] = false;
         continue;
       }
 
-      if (!Number.isFinite(tx) || !Number.isFinite(ty)) continue;
+      if (!Number.isFinite(tx) || !Number.isFinite(ty)) {
+        wasPinchingRef.current[handIndex] = isPinching;
+        continue;
+      }
 
       const cx = Math.max(0, Math.min(window.innerWidth - 1, tx));
       const cy = Math.max(0, Math.min(window.innerHeight - 1, ty));
       const els = document.elementsFromPoint(cx, cy);
-      const overList = els.some((el) => el === listRef.current || el.closest?.(".nw-list"));
+      const overList = els.some(
+        (el) => el === listRef.current || el.closest?.(".nw-list")
+      );
+
+      if (!wasPinching && status === "success" && !selected) {
+        const cardEl = els.find(
+          (el) => el.classList?.contains("nw-card") || el.closest?.(".nw-card")
+        );
+        const card = cardEl?.closest?.(".nw-card") ?? cardEl;
+        const articleIndex = Number(card?.dataset?.nwArticleIndex);
+        if (Number.isInteger(articleIndex) && articles[articleIndex]) {
+          setSelected(articles[articleIndex]);
+          activeScrollRef.current[handIndex] = false;
+          prevYRef.current[handIndex] = null;
+          wasPinchingRef.current[handIndex] = true;
+          continue;
+        }
+      }
 
       if (!activeScrollRef.current[handIndex]) {
         if (!overList) {
           prevYRef.current[handIndex] = null;
+          wasPinchingRef.current[handIndex] = isPinching;
           continue;
         }
         activeScrollRef.current[handIndex] = true;
         prevYRef.current[handIndex] = ty;
+        wasPinchingRef.current[handIndex] = isPinching;
         continue;
       }
 
       const py = prevYRef.current[handIndex];
       if (py != null && listRef.current) {
         const delta = py - ty;
-        if (Math.abs(delta) > 0.8) {
-          listRef.current.scrollTop += delta;
-        }
+        if (Math.abs(delta) > 0.8) listRef.current.scrollTop += delta;
       }
       prevYRef.current[handIndex] = ty;
+      wasPinchingRef.current[handIndex] = isPinching;
     }
-  }, [handPositions, status]);
+  }, [articles, handPositions, selected, status]);
 
   return (
     <div className="nw-widget">
@@ -155,9 +214,13 @@ export default function NewsWidget({ handPositions = {} }) {
       {status === "success" && (
         <div className="nw-list" ref={listRef}>
           {articles.map((article, i) => (
-            <ArticleCard key={i} article={article} />
+            <ArticleCard key={i} article={article} onClick={setSelected} />
           ))}
         </div>
+      )}
+
+      {selected && (
+        <ArticleModal article={selected} onClose={() => setSelected(null)} />
       )}
     </div>
   );

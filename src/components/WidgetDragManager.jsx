@@ -44,9 +44,7 @@ function DraggableWidget({ instance, onMouseDragStart, isBeingDragged, handPosit
                 onMouseDown={e => { onFocusWidget(); onMouseDragStart(e, instance.id); }}
             >
                 <span className="draggable-widget__title">{label}</span>
-                <div className="draggable-widget__dots">
-                    {[0,1,2].map(i => <div key={i} className="draggable-widget__dot" />)}
-                </div>
+
             </div>
             <div className="draggable-widget__content">
                 <Component
