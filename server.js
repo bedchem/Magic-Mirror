@@ -8,8 +8,8 @@ import { fileURLToPath } from 'node:url';
 import { initDB } from './src/utils/db.js';
 import { addSpotifyLink, getSpotifyLinks } from './src/utils/db.js';
 import sharp from 'sharp';
-import { createRequire } from 'node:module';
 import crypto from 'crypto';
+import { spawn } from 'node:child_process';
 
 dotenv.config({ path: resolve(dirname(fileURLToPath(import.meta.url)), '.env') });
 
@@ -18,36 +18,40 @@ await initDB();
 const app = express();
 const upload = multer({ limits: { fileSize: 10 * 1024 * 1024 } });
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
 function generateCode(uid) {
   return 'NFC-' + crypto.createHash('sha256').update(uid).digest('hex').substring(0, 12).toUpperCase();
 }
 
-try {
-  const require = createRequire(import.meta.url);
-  const { NFC } = require('nfc-pcsc');
-  const nfc = new NFC();
+const nfcProcess = spawn('python3', [resolve(__dirname, 'nfc.py')]);
 
-  nfc.on('reader', (reader) => {
-    console.log(`✅ NFC Reader verbunden: ${reader.reader.name}`);
+let nfcBuffer = '';
 
-    reader.on('card', (card) => {
-      console.log('─'.repeat(40));
-      console.log(`UID:  ${card.uid}`);
-      console.log(`CODE: ${generateCode(card.uid)}`);
-      console.log(`TYP:  ${card.standard || card.type}`);
-      console.log('─'.repeat(40));
-    });
+nfcProcess.stdout.on('data', (data) => {
+  nfcBuffer += data.toString();
+  const lines = nfcBuffer.split('\n');
+  nfcBuffer = lines.pop();
+  for (const line of lines) {
+    const uid = line.trim();
+    if (!uid) continue;
+    console.log('────────────────────────────────────────');
+    console.log(`UID:  ${uid}`);
+    console.log(`CODE: ${generateCode(uid)}`);
+    console.log('────────────────────────────────────────');
+  }
+});
 
-    reader.on('card.off', () => console.log('Karte entfernt\n'));
-    reader.on('error', (err) => console.error('Reader Fehler:', err.message));
-  });
+nfcProcess.stderr.on('data', (data) => {
+  const msg = data.toString().trim();
+  if (msg) console.error('NFC Fehler:', msg);
+});
 
-  nfc.on('error', (err) => console.error('NFC Fehler:', err.message));
+nfcProcess.on('close', (code) => {
+  console.warn(`NFC Prozess beendet (code ${code}) – RC522 nicht verfügbar.`);
+});
 
-  console.log('NFC: Warte auf Karte...');
-} catch {
-  console.warn('NFC Treiber nicht verfügbar – NFC deaktiviert.');
-}
+console.log('NFC RC522: Warte auf Karte...');
 
 const FALLBACK_COMPLIMENTS = [
   'You have a great presence.',
@@ -205,10 +209,10 @@ app.post('/api/compliment', upload.single('image'), async (req, res) => {
         console.log('Ollama Antwort:', compliment);
         return res.send(compliment);
       } else {
-        console.warn('Ollama nicht erreichbar – keine KI verfügbar, Fallback wird verwendet.');
+        console.warn('Ollama nicht erreichbar – Fallback wird verwendet.');
       }
     } catch {
-      console.warn('Ollama nicht erreichbar – keine KI verfügbar, Fallback wird verwendet.');
+      console.warn('Ollama nicht erreichbar – Fallback wird verwendet.');
     }
 
     res.send(getFallbackCompliment());
