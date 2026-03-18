@@ -11,47 +11,43 @@ import sharp from 'sharp';
 import { createRequire } from 'node:module';
 import crypto from 'crypto';
 
-const require = createRequire(import.meta.url);
-const { NFC } = require('nfc-pcsc');
-
-const nfc = new NFC();
-
-function generateCode(uid) {
-  return 'NFC-' + crypto
-    .createHash('sha256')
-    .update(uid)
-    .digest('hex')
-    .substring(0, 12)
-    .toUpperCase();
-}
-
-nfc.on('reader', (reader) => {
-  console.log(`✅ Reader: ${reader.reader.name}`);
-
-  reader.on('card', (card) => {
-    console.log('─'.repeat(40));
-    console.log(`UID:  ${card.uid}`);
-    console.log(`CODE: ${generateCode(card.uid)}`);
-    console.log(`TYP:  ${card.standard || card.type}`);
-    console.log('─'.repeat(40));
-  });
-
-  reader.on('card.off', () => console.log('Karte entfernt\n'));
-  reader.on('error', (err) => console.error('Reader Fehler:', err.message));
-});
-
-nfc.on('error', (err) => console.error('NFC Fehler:', err.message));
-
-console.log('Warte auf Karte...\n');
-
 dotenv.config({ path: resolve(dirname(fileURLToPath(import.meta.url)), '.env') });
 
 await initDB();
 
 const app = express();
-const upload = multer({
-  limits: { fileSize: 10 * 1024 * 1024 }
-});
+const upload = multer({ limits: { fileSize: 10 * 1024 * 1024 } });
+
+function generateCode(uid) {
+  return 'NFC-' + crypto.createHash('sha256').update(uid).digest('hex').substring(0, 12).toUpperCase();
+}
+
+try {
+  const require = createRequire(import.meta.url);
+  const { NFC } = require('nfc-pcsc');
+  const nfc = new NFC();
+
+  nfc.on('reader', (reader) => {
+    console.log(`✅ NFC Reader verbunden: ${reader.reader.name}`);
+
+    reader.on('card', (card) => {
+      console.log('─'.repeat(40));
+      console.log(`UID:  ${card.uid}`);
+      console.log(`CODE: ${generateCode(card.uid)}`);
+      console.log(`TYP:  ${card.standard || card.type}`);
+      console.log('─'.repeat(40));
+    });
+
+    reader.on('card.off', () => console.log('Karte entfernt\n'));
+    reader.on('error', (err) => console.error('Reader Fehler:', err.message));
+  });
+
+  nfc.on('error', (err) => console.error('NFC Fehler:', err.message));
+
+  console.log('NFC: Warte auf Karte...');
+} catch {
+  console.warn('NFC Treiber nicht verfügbar – NFC deaktiviert.');
+}
 
 const FALLBACK_COMPLIMENTS = [
   'You have a great presence.',
@@ -62,8 +58,7 @@ const FALLBACK_COMPLIMENTS = [
 ];
 
 function getFallbackCompliment() {
-  const index = Math.floor(Math.random() * FALLBACK_COMPLIMENTS.length);
-  return FALLBACK_COMPLIMENTS[index];
+  return FALLBACK_COMPLIMENTS[Math.floor(Math.random() * FALLBACK_COMPLIMENTS.length)];
 }
 
 app.use(cors({
@@ -94,17 +89,14 @@ function getSymbolsFromEnv() {
 
 function extractSpotifyTrackId(url = '') {
   if (!url) return null;
-
   const patterns = [
     /(?:open\.spotify\.com\/)(?:embed\/)?track\/([a-zA-Z0-9]+)/,
     /spotify:track:([a-zA-Z0-9]+)/,
   ];
-
   for (const pattern of patterns) {
     const match = String(url).match(pattern);
     if (match?.[1]) return match[1];
   }
-
   return null;
 }
 
@@ -128,23 +120,21 @@ async function fetchSpotifyTrackMetadata(url) {
           'Accept-Language': 'en-US,en;q=0.9'
         }
       });
-
       if (oembedRes.ok) {
         const data = await oembedRes.json();
-        const title = data?.title || 'Unbekannt';
-        const artist = data?.author_name || '';
-        const cover = data?.thumbnail_url || null;
-
-        return { url, title, artist, cover };
+        return {
+          url,
+          title: data?.title || 'Unbekannt',
+          artist: data?.author_name || '',
+          cover: data?.thumbnail_url || null
+        };
       }
     } catch (error) {
       console.error('Spotify oEmbed Fehler:', error.message);
     }
   }
 
-  if (!trackId) {
-    return buildSpotifyMetadataFallback(url);
-  }
+  if (!trackId) return buildSpotifyMetadataFallback(url);
 
   try {
     const pageRes = await fetch(`https://open.spotify.com/track/${trackId}`, {
@@ -153,18 +143,13 @@ async function fetchSpotifyTrackMetadata(url) {
         'Accept-Language': 'en-US,en;q=0.9'
       }
     });
-
-    if (!pageRes.ok) {
-      throw new Error(`Spotify page status ${pageRes.status}`);
-    }
-
+    if (!pageRes.ok) throw new Error(`Spotify page status ${pageRes.status}`);
     const html = await pageRes.text();
     const title = html.match(/<meta property="og:title" content="([^"]+)"/)?.[1] ?? 'Unbekannt';
     const cover = html.match(/<meta property="og:image" content="([^"]+)"/)?.[1] ?? null;
     const description = html.match(/<meta property="og:description" content="([^"]+)"/)?.[1] ?? '';
     const descriptionParts = description.split(' · ');
     const artist = descriptionParts[1] ?? description.split(' - ')[1] ?? '';
-
     return { url, title, artist, cover };
   } catch (error) {
     console.error('Spotify Fallback Fehler:', error.message);
@@ -187,52 +172,46 @@ app.post('/api/compliment', upload.single('image'), async (req, res) => {
   console.log(`Image received: ${req.file.originalname}, size: ${req.file.size} bytes, mimetype: ${req.file.mimetype}`);
 
   try {
-    const resized = await sharp(req.file.buffer)
-  .resize(128)
-  .jpeg({ quality: 30 })
-  .toBuffer();
+    const resized = await sharp(req.file.buffer).resize(128).jpeg({ quality: 30 }).toBuffer();
     const base64 = resized.toString('base64');
     console.log('Converted to base64, length:', base64.length);
 
-    console.log('Sending request to Ollama...');
-    const ollamaRes = await fetch('http://localhost:11434/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'qwen3-vl:2b-instruct',
-        stream: false,
-        messages: [
-          {
-            role: 'system',
-            content: 'You give very short compliments (max 1 sentence 15 words). Be natural.'
-          },
-          {
-            role: 'user',
-            content: 'Give a short compliment about this person. based on what they are wearing tell them the colors be direct and honest tell them if they are ugly. Talk like a human not too much like a robot. Very short sentences. Be direct and honest. Do not be afraid to tell them if they are ugly. Be flirty. Talk like a human, not too much like a robot. Dont make weird references like coffeshops, dreamy or anything. Be very Flirty.',
-            images: [base64]
-          }
-        ],
-        options: {
-          temperature: 0.6,
-          num_predict: 30
-        }
-      })
-    });
+    try {
+      console.log('Sending request to Ollama...');
+      const ollamaRes = await fetch('http://localhost:11434/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'qwen3-vl:2b-instruct',
+          stream: false,
+          messages: [
+            {
+              role: 'system',
+              content: 'You give very short compliments (max 1 sentence 15 words). Be natural.'
+            },
+            {
+              role: 'user',
+              content: 'Give a short compliment about this person. based on what they are wearing tell them the colors be direct and honest tell them if they are ugly. Talk like a human not too much like a robot. Very short sentences. Be direct and honest. Do not be afraid to tell them if they are ugly. Be flirty. Talk like a human, not too much like a robot. Dont make weird references like coffeshops, dreamy or anything. Be very Flirty.',
+              images: [base64]
+            }
+          ],
+          options: { temperature: 0.6, num_predict: 30 }
+        })
+      });
 
-    if (!ollamaRes.ok) {
-      console.error('Ollama error:', ollamaRes.status, ollamaRes.statusText);
-      const errorText = await ollamaRes.text();
-      console.error('Ollama response:', errorText);
-      return res.send(getFallbackCompliment());
+      if (ollamaRes.ok) {
+        const data = await ollamaRes.json();
+        const compliment = data?.message?.content || 'You look great :)';
+        console.log('Ollama Antwort:', compliment);
+        return res.send(compliment);
+      } else {
+        console.warn('Ollama nicht erreichbar – keine KI verfügbar, Fallback wird verwendet.');
+      }
+    } catch {
+      console.warn('Ollama nicht erreichbar – keine KI verfügbar, Fallback wird verwendet.');
     }
 
-    const data = await ollamaRes.json();
-    console.log('Ollama response received');
-
-    const compliment = data?.message?.content || 'You look great :)';
-    console.log('Sending compliment:', compliment);
-
-    res.send(compliment);
+    res.send(getFallbackCompliment());
 
   } catch (err) {
     console.error('Server error:', err);
@@ -258,49 +237,35 @@ app.get('/weather', async (req, res) => {
 app.get('/stocks/config', (req, res) => {
   const token = getFinnhubToken();
   const symbols = getSymbolsFromEnv();
-
   if (!token) {
     res.status(500).json({ error: 'FINNHUB_API_KEY fehlt in .env' });
     return;
   }
-
-  res.json({
-    wsUrl: `wss://ws.finnhub.io?token=${token}`,
-    symbols,
-  });
+  res.json({ wsUrl: `wss://ws.finnhub.io?token=${token}`, symbols });
 });
 
 app.get('/stocks/quotes', async (req, res) => {
   const token = getFinnhubToken();
   const symbols = getSymbolsFromEnv();
-
   if (!token) {
     res.status(500).json({ error: 'FINNHUB_API_KEY fehlt in .env' });
     return;
   }
-
   try {
     const results = await Promise.all(
       symbols.map(async (symbol) => {
         const url = `https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(symbol)}&token=${token}`;
         const r = await fetch(url);
         const data = await r.json();
-
-        if (!r.ok || data?.error) {
-          return { symbol, price: null, change_percent: null };
-        }
-
+        if (!r.ok || data?.error) return { symbol, price: null, change_percent: null };
         const current = typeof data.c === 'number' && data.c > 0 ? data.c : null;
         const prevClose = typeof data.pc === 'number' && data.pc > 0 ? data.pc : null;
-        const changePercent =
-          current != null && prevClose != null
-            ? ((current - prevClose) / prevClose) * 100
-            : null;
-
+        const changePercent = current != null && prevClose != null
+          ? ((current - prevClose) / prevClose) * 100
+          : null;
         return { symbol, price: current, change_percent: changePercent };
       })
     );
-
     res.json(results);
   } catch (error) {
     console.error('Finnhub Quote Fehler:', error.message);
@@ -311,11 +276,7 @@ app.get('/stocks/quotes', async (req, res) => {
 app.get('/api/spotify-links', async (req, res) => {
   try {
     const links = await getSpotifyLinks();
-
-    const enriched = await Promise.all(
-      links.map(async (link) => fetchSpotifyTrackMetadata(link.url))
-    );
-
+    const enriched = await Promise.all(links.map((link) => fetchSpotifyTrackMetadata(link.url)));
     res.json(enriched);
   } catch (err) {
     console.error('DB Fehler:', err);
@@ -326,7 +287,6 @@ app.get('/api/spotify-links', async (req, res) => {
 app.post('/api/spotify-links', express.json(), async (req, res) => {
   const { url } = req.body;
   if (!url) return res.status(400).json({ error: 'Keine URL angegeben' });
-
   try {
     await addSpotifyLink(url);
     res.json({ success: true });
@@ -343,8 +303,4 @@ app.listen(PORT, () => {
   console.log(`Compliment API: http://localhost:${PORT}/api/compliment`);
   console.log(`Weather API: http://localhost:${PORT}/weather`);
   console.log(`Stocks API: http://localhost:${PORT}/stocks/config`);
-  console.log(`✅ Reader: ${reader.reader.name}`);
-  console.log(`UID:  ${card.uid}`);
-  console.log(`CODE: ${generateCode(card.uid)}`);
-  console.log(`TYP:  ${card.standard || card.type}`);
 });

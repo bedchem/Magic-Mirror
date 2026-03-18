@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import HandTrackingService from '../components/HandTrackingService';
 import WidgetDragManager from '../components/WidgetDragManager';
 import notificationImage from '../assets/notification.png';
@@ -6,7 +6,8 @@ import notificationImage from '../assets/notification.png';
 const DEBUG = true;
 
 function useAutoBrightness(videoRef, enabled = true) {
-  const [exposure, setExposure] = useState({ brightness: 1, contrast: 1, saturation: 1 });
+  const valuesRef = useRef({ brightness: 1, contrast: 1, saturation: 1 });
+  const frameBufferRef = useRef(null);
 
   useEffect(() => {
     if (!enabled) return;
@@ -18,8 +19,10 @@ function useAutoBrightness(videoRef, enabled = true) {
     const PATCH_H = 8;
 
     const canvas = document.createElement('canvas');
-    canvas.width  = PATCH_W;
-    canvas.height = PATCH_H;
+    const SAMPLE_W = PATCH_COLS * PATCH_W;
+    const SAMPLE_H = PATCH_ROWS * PATCH_H;
+    canvas.width = SAMPLE_W;
+    canvas.height = SAMPLE_H;
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
     const measure = () => {
@@ -30,54 +33,97 @@ function useAutoBrightness(videoRef, enabled = true) {
       const vh = video.videoHeight;
       if (!vw || !vh) return;
 
-      const patchLums = [];
+      ctx.drawImage(video, 0, 0, vw, vh, 0, 0, SAMPLE_W, SAMPLE_H);
+      const data = ctx.getImageData(0, 0, SAMPLE_W, SAMPLE_H).data;
+
+      // Reuse a preallocated luminance buffer to avoid periodic GC spikes.
+      const totalPatches = PATCH_COLS * PATCH_ROWS;
+      const patchLums = frameBufferRef.current && frameBufferRef.current.length === totalPatches
+        ? frameBufferRef.current
+        : new Float32Array(totalPatches);
 
       for (let row = 0; row < PATCH_ROWS; row++) {
         for (let col = 0; col < PATCH_COLS; col++) {
-          const sx = (col / PATCH_COLS) * vw;
-          const sy = (row / PATCH_ROWS) * vh;
-          const sw = vw / PATCH_COLS;
-          const sh = vh / PATCH_ROWS;
-
-          ctx.drawImage(video, sx, sy, sw, sh, 0, 0, PATCH_W, PATCH_H);
-          const data = ctx.getImageData(0, 0, PATCH_W, PATCH_H).data;
-
           let sum = 0;
-          const pixels = PATCH_W * PATCH_H;
-          for (let i = 0; i < pixels; i++) {
-            sum += 0.2126 * data[i * 4] + 0.7152 * data[i * 4 + 1] + 0.0722 * data[i * 4 + 2];
+          for (let py = 0; py < PATCH_H; py++) {
+            const y = row * PATCH_H + py;
+            const rowBase = y * SAMPLE_W;
+            for (let px = 0; px < PATCH_W; px++) {
+              const x = col * PATCH_W + px;
+              const i = (rowBase + x) * 4;
+              sum += 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
+            }
           }
-          patchLums.push(sum / pixels / 255);
+
+          const patchIndex = row * PATCH_COLS + col;
+          patchLums[patchIndex] = sum / (PATCH_W * PATCH_H * 255);
         }
       }
+      frameBufferRef.current = patchLums;
 
-      patchLums.sort((a, b) => a - b);
-      const darkCount = Math.max(1, Math.floor(patchLums.length * 0.20));
+      const sorted = Array.from(patchLums).sort((a, b) => a - b);
+
+      const darkCount = Math.max(1, Math.floor(sorted.length * 0.20));
       let darkSum = 0;
-      for (let i = 0; i < darkCount; i++) darkSum += patchLums[i];
+      for (let i = 0; i < darkCount; i++) darkSum += sorted[i];
       const darkLuminance = darkSum / darkCount;
 
-let brightness;
-if (darkLuminance < 0.04) {
-  brightness = 2.5;
-} else if (darkLuminance < 0.15) {
-  brightness = 2.5 - ((darkLuminance - 0.04) / 0.11) * 0.8;
-} else if (darkLuminance < 0.35) {
-  brightness = 1.7 - ((darkLuminance - 0.15) / 0.20) * 0.5;
-} else if (darkLuminance < 0.55) {
-  brightness = 1.2 - ((darkLuminance - 0.35) / 0.20) * 0.2;
-} else {
-  brightness = 1.0;
-}
+      const brightCount = Math.max(1, Math.floor(sorted.length * 0.20));
+      let brightSum = 0;
+      for (let i = sorted.length - brightCount; i < sorted.length; i++) brightSum += sorted[i];
+      const brightLuminance = brightSum / brightCount;
 
-      const contrast   = 1.0 + (brightness - 1.0) * 0.01;
-      const saturation = 1.0 + (brightness - 1.0) * 0.01;
+      const midLuminance = sorted[Math.floor(sorted.length / 2)];
 
-      setExposure({
-        brightness: +brightness.toFixed(2),
-        contrast:   +contrast.toFixed(2),
-        saturation: +saturation.toFixed(2),
-      });
+      const highlightPenalty = brightLuminance > 0.85 ? (brightLuminance - 0.85) / 0.15 : 0;
+      const shadowBoost = darkLuminance < 0.08 && midLuminance < 0.25 ? (0.08 - darkLuminance) / 0.08 : 0;
+      const contrastRange = brightLuminance - darkLuminance;
+
+      let brightness;
+      if (darkLuminance < 0.04) {
+        brightness = 1.6;
+      } else if (darkLuminance < 0.15) {
+        brightness = 1.6 - ((darkLuminance - 0.04) / 0.11) * 0.4;
+      } else if (darkLuminance < 0.35) {
+        brightness = 1.2 - ((darkLuminance - 0.15) / 0.20) * 0.2;
+      } else if (darkLuminance < 0.55) {
+        brightness = 1.0 - ((darkLuminance - 0.35) / 0.20) * 0.05;
+      } else {
+        brightness = 0.95;
+      }
+
+      brightness -= highlightPenalty * 0.6;
+      brightness += shadowBoost * 0.3;
+
+      if (contrastRange > 0.6) {
+        brightness = 1.0 + (brightness - 1.0) * 0.2;
+      }
+
+      brightness = Math.max(0.7, Math.min(1.6, brightness));
+
+      const contrast   = 1.0 + (brightness - 1.0) * 0.4;
+      const saturation = 1.0 + (brightness - 1.0) * 0.3;
+
+      const prev = valuesRef.current;
+      const LERP = 0.3;
+      const next = {
+        brightness: +(prev.brightness + (brightness - prev.brightness) * LERP).toFixed(2),
+        contrast:   +(prev.contrast   + (contrast   - prev.contrast)   * LERP).toFixed(2),
+        saturation: +(prev.saturation + (saturation - prev.saturation) * LERP).toFixed(2),
+      };
+
+      const changed =
+        next.brightness !== prev.brightness ||
+        next.contrast   !== prev.contrast   ||
+        next.saturation !== prev.saturation;
+
+      if (!changed) return;
+
+      valuesRef.current = next;
+
+      if (video) {
+        video.style.filter = `brightness(${next.brightness}) contrast(${next.contrast}) saturate(${next.saturation})`;
+      }
     };
 
     measure();
@@ -85,7 +131,7 @@ if (darkLuminance < 0.04) {
     return () => clearInterval(id);
   }, [enabled, videoRef]);
 
-  return exposure;
+  return valuesRef;
 }
 
 const baseSettings = {
@@ -217,59 +263,83 @@ function getRandomInterval() {
   return Math.floor(Math.random() * (MAX_INTERVAL - MIN_INTERVAL + 1)) + MIN_INTERVAL;
 }
 
-function HandNav({ handPositions, onSpawnWidget }) {
+function useHandPositionEmitter() {
+  const listenersRef = useRef(new Set());
+  const positionsRef = useRef({});
+
+  const emit = useCallback((pos) => {
+    const idx = pos.handIndex ?? 0;
+    positionsRef.current = { ...positionsRef.current, [idx]: pos };
+    for (const fn of listenersRef.current) fn(positionsRef.current);
+  }, []);
+
+  const subscribe = useCallback((fn) => {
+    listenersRef.current.add(fn);
+    return () => listenersRef.current.delete(fn);
+  }, []);
+
+  return { emit, subscribe, positionsRef };
+}
+
+function HandNav({ subscribe, onSpawnWidget }) {
   const [expanded, setExpanded] = useState(false);
   const [hoveredIdx, setHoveredIdx] = useState(null);
   const plusRef = useRef(null);
   const itemRefs = useRef([]);
   const wasPinching = useRef({});
+  const expandedRef = useRef(false);
 
   useEffect(() => {
-    const positions = Object.values(handPositions);
-    if (!positions.length) return;
+    expandedRef.current = expanded;
+  }, [expanded]);
 
-    const plusEl = plusRef.current;
-    if (!plusEl) return;
-    const plusRect = plusEl.getBoundingClientRect();
+  useEffect(() => {
+    return subscribe((handPositions) => {
+      const positions = Object.values(handPositions);
+      if (!positions.length) return;
 
-    let handOverMenu = false;
+      const plusEl = plusRef.current;
+      if (!plusEl) return;
+      const plusRect = plusEl.getBoundingClientRect();
 
-    for (const pos of positions) {
-      if (!pos.detected || pos.palmVisible === false) continue;
-      const { x, y, isPinching, handIndex } = pos;
+      let handOverMenu = false;
+      let newHovered = null;
 
-      const MARGIN = 40;
-      const overPlus =
-        x >= plusRect.left - MARGIN &&
-        x <= plusRect.right + MARGIN &&
-        y >= plusRect.top - MARGIN &&
-        y <= plusRect.bottom + MARGIN;
+      for (const pos of positions) {
+        if (!pos.detected || pos.palmVisible === false) continue;
+        const { x, y, isPinching, handIndex } = pos;
 
-      if (overPlus) handOverMenu = true;
+        const MARGIN = 40;
+        const overPlus =
+          x >= plusRect.left - MARGIN &&
+          x <= plusRect.right + MARGIN &&
+          y >= plusRect.top - MARGIN &&
+          y <= plusRect.bottom + MARGIN;
 
-      if (expanded) {
-        let found = null;
-        itemRefs.current.forEach((el, i) => {
-          if (!el) return;
-          const r = el.getBoundingClientRect();
-          if (x >= r.left - 20 && x <= r.right + 20 && y >= r.top - 10 && y <= r.bottom + 10) {
-            found = i;
-            handOverMenu = true;
+        if (overPlus) handOverMenu = true;
+
+        if (expandedRef.current) {
+          itemRefs.current.forEach((el, i) => {
+            if (!el) return;
+            const r = el.getBoundingClientRect();
+            if (x >= r.left - 20 && x <= r.right + 20 && y >= r.top - 10 && y <= r.bottom + 10) {
+              newHovered = i;
+              handOverMenu = true;
+            }
+          });
+
+          if (isPinching && !wasPinching.current[handIndex] && newHovered !== null) {
+            onSpawnWidget(NAV_ITEMS[newHovered].widgetId);
           }
-        });
-        setHoveredIdx(found);
-
-        if (isPinching && !wasPinching.current[handIndex] && found !== null) {
-          onSpawnWidget(NAV_ITEMS[found].widgetId);
         }
+
+        wasPinching.current[handIndex] = isPinching;
       }
 
-      wasPinching.current[handIndex] = isPinching;
-    }
-
-    setExpanded(handOverMenu);
-    if (!handOverMenu) setHoveredIdx(null);
-  }, [handPositions, expanded, onSpawnWidget]);
+      setExpanded(handOverMenu);
+      setHoveredIdx(handOverMenu ? newHovered : null);
+    });
+  }, [subscribe, onSpawnWidget]);
 
   return (
     <>
@@ -379,7 +449,60 @@ function HandStatusDot({ status, index }) {
   );
 }
 
-function StatusBar({ statuses, exposure }) {
+function StatusBar({ subscribe, exposureRef }) {
+  const [statuses, setStatuses] = useState([
+    { detected: false, isPinching: false, palmVisible: false },
+    { detected: false, isPinching: false, palmVisible: false },
+  ]);
+  const [display, setDisplay] = useState({ brightness: 1, contrast: 1, saturation: 1 });
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setDisplay(prev => {
+        const next = exposureRef.current;
+        if (
+          prev.brightness === next.brightness &&
+          prev.contrast === next.contrast &&
+          prev.saturation === next.saturation
+        ) {
+          return prev;
+        }
+        return { ...next };
+      });
+    }, 2000);
+    return () => clearInterval(id);
+  }, [exposureRef]);
+
+  useEffect(() => {
+    let rafId;
+    return subscribe((handPositions) => {
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        setStatuses(prev => {
+          const next = [...prev];
+          let changed = false;
+          for (const pos of Object.values(handPositions)) {
+            const idx = pos.handIndex ?? 0;
+            const s = {
+              detected: pos.detected,
+              isPinching: pos.isPinching || false,
+              palmVisible: pos.palmVisible ?? true,
+            };
+            if (
+              next[idx]?.detected !== s.detected ||
+              next[idx]?.isPinching !== s.isPinching ||
+              next[idx]?.palmVisible !== s.palmVisible
+            ) {
+              next[idx] = s;
+              changed = true;
+            }
+          }
+          return changed ? next : prev;
+        });
+      });
+    });
+  }, [subscribe]);
+
   return (
     <div className="status-bar">
       {statuses.map((s, i) => <HandStatusDot key={i} status={s} index={i} />)}
@@ -387,7 +510,7 @@ function StatusBar({ statuses, exposure }) {
         <div className="status-bar__entry">
           <div className="status-bar__dot" style={{ background: '#a78bfa', boxShadow: '0 0 8px #a78bfa' }} />
           <span className="status-bar__label">
-            b{exposure.brightness}× c{exposure.contrast}× s{exposure.saturation}×
+            b{display.brightness}× c{display.contrast}× s{display.saturation}×
           </span>
         </div>
       )}
@@ -396,11 +519,6 @@ function StatusBar({ statuses, exposure }) {
 }
 
 export default function IndexPage() {
-  const [statuses, setStatuses] = useState([
-    { detected: false, isPinching: false, palmVisible: false },
-    { detected: false, isPinching: false, palmVisible: false },
-  ]);
-  const [handPositions, setHandPositions] = useState({});
   const [compliment, setCompliment] = useState('');
   const [complimentLoopStarted, setComplimentLoopStarted] = useState(false);
   const videoRef = useRef(null);
@@ -408,14 +526,8 @@ export default function IndexPage() {
   const intervalRef = useRef(null);
   const spawnRef = useRef(null);
 
-  const exposure = useAutoBrightness(videoRef, true);
-
-  const handTrackingSettings = useMemo(() => ({
-    ...baseSettings,
-    brightness: exposure.brightness,
-    contrast:   exposure.contrast,
-    saturation: exposure.saturation,
-  }), [exposure]);
+  const exposureRef = useAutoBrightness(videoRef, true);
+  const { emit, subscribe, positionsRef } = useHandPositionEmitter();
 
   const takeComplimentPhoto = useCallback(async () => {
     const video = videoRef.current;
@@ -481,36 +593,28 @@ export default function IndexPage() {
   const handleHandPosition = useCallback((pos) => {
     const idx = pos.handIndex ?? 0;
     window.__updateHandCursor?.[idx]?.(pos);
-    setHandPositions(prev => ({ ...prev, [idx]: pos }));
-    setStatuses(prev => {
-      const next = [...prev];
-      next[idx] = {
-        detected: pos.detected,
-        isPinching: pos.isPinching || false,
-        palmVisible: pos.palmVisible ?? true,
-      };
-      return next;
-    });
-  }, []);
+    emit(pos);
+  }, [emit]);
 
   return (
     <div className="index-page">
-      {DEBUG && <StatusBar statuses={statuses} exposure={exposure} />}
+      {DEBUG && <StatusBar subscribe={subscribe} exposureRef={exposureRef} />}
 
       <HandTrackingService
-        settings={handTrackingSettings}
+        settings={baseSettings}
         enabled={true}
         onHandPosition={handleHandPosition}
         onVideoReady={handleTrackingVideoReady}
       />
 
       <HandNav
-        handPositions={handPositions}
+        subscribe={subscribe}
         onSpawnWidget={handleSpawnWidget}
       />
 
       <WidgetDragManager
-        handPositions={handPositions}
+        positionsRef={positionsRef}
+        subscribe={subscribe}
         spawnRef={spawnRef}
       />
 
