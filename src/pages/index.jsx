@@ -1,11 +1,63 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import HandTrackingService from '../components/HandTrackingService';
 import WidgetDragManager from '../components/WidgetDragManager';
 import notificationImage from '../assets/notification.png';
 
 const DEBUG = true;
 
-const defaultSettings = {
+// ─── hook: measures camera brightness and returns a multiplier ───────────────
+function useAutoBrightness(videoRef, enabled = true) {
+  const [brightness, setBrightness] = useState(1);
+
+  useEffect(() => {
+    if (!enabled) return;
+
+    const SAMPLE_W = 64;
+    const SAMPLE_H = 48;
+    const INTERVAL_MS = 2000;
+
+    const canvas = document.createElement('canvas');
+    canvas.width  = SAMPLE_W;
+    canvas.height = SAMPLE_H;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+    const measure = () => {
+      const video = videoRef.current;
+      if (!video || !ctx || video.readyState < 2) return;
+
+      ctx.drawImage(video, 0, 0, SAMPLE_W, SAMPLE_H);
+      const data = ctx.getImageData(0, 0, SAMPLE_W, SAMPLE_H).data;
+
+      let sum = 0;
+      const pixels = SAMPLE_W * SAMPLE_H;
+      for (let i = 0; i < data.length; i += 4) {
+        sum += 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
+      }
+      const luminance = sum / pixels / 255;
+
+      let multiplier;
+      if (luminance < 0.05) {
+        multiplier = 5.0;
+      } else if (luminance < 0.30) {
+        multiplier = 5.0 - ((luminance - 0.05) / 0.25) * 3.0;
+      } else if (luminance < 0.60) {
+        multiplier = 2.0 - ((luminance - 0.30) / 0.30) * 1.0;
+      } else {
+        multiplier = 1.0;
+      }
+
+      setBrightness(+multiplier.toFixed(2));
+    };
+
+    measure();
+    const id = setInterval(measure, INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [enabled, videoRef]);
+
+  return brightness;
+}
+
+const baseSettings = {
   enabled: true,
   showPreview: DEBUG,
   cameraOrientation: 'landscape',
@@ -78,7 +130,6 @@ const NAV_ITEMS = [
       </svg>
     ),
   },
-  
   {
     label: 'Stocks',
     widgetId: 'StocksWidget',
@@ -105,14 +156,14 @@ const NAV_ITEMS = [
       </svg>
     ),
   },
-    {
+  {
     label: 'Zeichnen',
     widgetId: 'ZeichnenWidget',
     icon: (
-<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="30" height="30">
-  <path d="M12 20h9"/>
-  <path d="M16.5 3.5a2.1 2.1 0 113 3L7 19l-4 1 1-4 12.5-12.5z"/>
-</svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="30" height="30">
+        <path d="M12 20h9"/>
+        <path d="M16.5 3.5a2.1 2.1 0 113 3L7 19l-4 1 1-4 12.5-12.5z"/>
+      </svg>
     ),
   },
   {
@@ -297,10 +348,16 @@ function HandStatusDot({ status, index }) {
   );
 }
 
-function StatusBar({ statuses }) {
+function StatusBar({ statuses, brightness }) {
   return (
     <div className="status-bar">
       {statuses.map((s, i) => <HandStatusDot key={i} status={s} index={i} />)}
+      {DEBUG && (
+        <div className="status-bar__entry">
+          <div className="status-bar__dot" style={{ background: '#a78bfa', boxShadow: '0 0 8px #a78bfa' }} />
+          <span className="status-bar__label">brightness {brightness}×</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -317,6 +374,13 @@ export default function IndexPage() {
   const complimentRequestedRef = useRef(false);
   const intervalRef = useRef(null);
   const spawnRef = useRef(null);
+
+  const autoBrightness = useAutoBrightness(videoRef, true);
+
+  const handTrackingSettings = useMemo(() => ({
+    ...baseSettings,
+    brightness: autoBrightness,
+  }), [autoBrightness]);
 
   const takeComplimentPhoto = useCallback(async () => {
     const video = videoRef.current;
@@ -397,10 +461,10 @@ export default function IndexPage() {
 
   return (
     <div className="index-page">
-      {DEBUG && <StatusBar statuses={statuses} />}
+      {DEBUG && <StatusBar statuses={statuses} brightness={autoBrightness} />}
 
       <HandTrackingService
-        settings={defaultSettings}
+        settings={handTrackingSettings}
         enabled={true}
         onHandPosition={handleHandPosition}
         onVideoReady={handleTrackingVideoReady}
@@ -420,7 +484,7 @@ export default function IndexPage() {
       <LiveCursor handIndex={1} />
 
       {compliment && (
-        <div className="compliment-popup" rsole="status" aria-live="polite">
+        <div className="compliment-popup" role="status" aria-live="polite">
           <div className="card">
             <img className="img" src={notificationImage} alt="Notification" />
             <div className="textBox">
