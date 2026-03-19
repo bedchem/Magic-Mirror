@@ -240,24 +240,15 @@ function LockScreen({ onUnlock, demoMode = false }) {
         if (!data.uid || data.uid === lastRFIDRef.current) return;
         lastRFIDRef.current = data.uid;
 
-        const uuid = rfidUidToUuid(data.uid);
-
         if (ONLINE) {
           // Bestehender Pfad: direkt unlock
-          triggerUnlock(uuid);
+          triggerUnlock(ONLINE_UUID);
         } else {
-          // Neuer Pfad: User über API anlegen/laden, dann unlock
-          try {
-            const userRes = await fetch('http://localhost:3000/api/users', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ uuid }),
-            });
-            if (!userRes.ok) throw new Error(`HTTP ${userRes.status}`);
-            const user = await userRes.json();
+          // Neuer Pfad: Backend hat bereits User anlegen/laden, direkt die UUID + User verwenden
+          const uuid = data.uuid;
+          const user = data.user;
+          if (uuid && user) {
             triggerUnlock({ uuid, user });
-          } catch (e) {
-            console.error('RFID user fetch error:', e);
           }
         }
       } catch (e) {}
