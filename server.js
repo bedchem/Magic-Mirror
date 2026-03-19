@@ -10,6 +10,8 @@ import { addSpotifyLink, getSpotifyLinks } from './src/utils/db.js';
 import sharp from 'sharp';
 import { upsertUser, getUser, saveWidgetPositions, getWidgetPositions, deleteWidgetPosition, setUserName } from './src/utils/db.js';
 
+import './src/utils/rfid.js';
+
 dotenv.config({ path: resolve(dirname(fileURLToPath(import.meta.url)), '.env') });
 
 await initDB();
@@ -28,6 +30,13 @@ const FALLBACK_COMPLIMENTS = [
 function getFallbackCompliment() {
   return FALLBACK_COMPLIMENTS[Math.floor(Math.random() * FALLBACK_COMPLIMENTS.length)];
 }
+
+app.get('/api/rfid/last', (req, res) => {
+  res.json({
+    uid: global.lastRFIDUid || null,
+    time: global.lastRFIDTime || null,
+  });
+});
 
 app.use(cors({
   origin: 'http://localhost:5173',
@@ -351,4 +360,5 @@ app.listen(PORT, () => {
   console.log(`Compliment API: http://localhost:${PORT}/api/compliment`);
   console.log(`Weather API: http://localhost:${PORT}/weather`);
   console.log(`Stocks API: http://localhost:${PORT}/stocks/config`);
+  console.log(global.lastRFIDUid); 
 });

@@ -66,11 +66,12 @@
   display: flex;
   gap: 1rem;
   padding: 1rem 0.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   text-decoration: none;
   color: inherit;
   border-radius: 10px;
   transition: background 0.12s, padding-left 0.12s;
+  margin-bottom: 20px;
 }
 
 .nw-card:last-child {
