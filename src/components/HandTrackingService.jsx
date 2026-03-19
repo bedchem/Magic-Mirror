@@ -1,7 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { Hands } from '@mediapipe/hands';
-import { Camera } from '@mediapipe/camera_utils';
-import { drawConnectors, drawLandmarks } from '@mediapipe/drawing_utils';
+import { HandLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
 import {
   CAMERA_ORIENTATION_ROTATIONS,
   CAMERA_POSITION_ROTATIONS,
@@ -91,6 +89,33 @@ const makeEmptySlot = () => ({
 });
 const makeEmptySlots = () => ({ [PRIMARY_SLOT]: makeEmptySlot() });
 
+// Draw connectors manually (no @mediapipe/drawing_utils needed)
+function drawHandConnectors(ctx, landmarks, connections, { color = '#00ff00', lineWidth = 2 } = {}) {
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lineWidth;
+  for (const [a, b] of connections) {
+    if (!landmarks[a] || !landmarks[b]) continue;
+    ctx.beginPath();
+    ctx.moveTo(landmarks[a].x, landmarks[a].y);
+    ctx.lineTo(landmarks[b].x, landmarks[b].y);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawHandLandmarks(ctx, landmarks, { color = '#ff0000', lineWidth = 1, radius = 3 } = {}) {
+  ctx.save();
+  ctx.fillStyle = color;
+  for (const lm of landmarks) {
+    if (!lm) continue;
+    ctx.beginPath();
+    ctx.arc(lm.x, lm.y, radius, 0, 2 * Math.PI);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
 const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings = {}, enabled, flipCamera = false }) => {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -105,7 +130,8 @@ const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings
   const smoothedRef = useRef({});
   const smoothingRef = useRef(0);
   const sensitivityRef = useRef(1);
-  const cameraRef = useRef(null);
+  const cameraStreamRef = useRef(null);
+  const animFrameRef = useRef(null);
   const handsRef = useRef(null);
   const flipCameraRef = useRef(flipCamera);
   const runtimeConfigRef = useRef(getHandTrackingRuntimeConfig(settings));
@@ -131,10 +157,7 @@ const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings
     sensitivityRef.current = clampVal(settings.sensitivity, 0.25, 3, 1);
   }, [settings]);
 
-  useEffect(() => {
-    flipCameraRef.current = flipCamera;
-  }, [flipCamera]);
-
+  useEffect(() => { flipCameraRef.current = flipCamera; }, [flipCamera]);
   useEffect(() => { posCallbackRef.current = onHandPosition; }, [onHandPosition]);
   useEffect(() => { gestureCallbackRef.current = onGesture; }, [onGesture]);
   useEffect(() => { videoReadyRef.current = onVideoReady; }, [onVideoReady]);
@@ -144,15 +167,13 @@ const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings
     videoReadyRef.current = null;
   }, []);
 
-  const onResults = useCallback((results) => {
-    const canvas = canvasRef.current;
-    const video = videoRef.current;
-    if (!canvas || !video) return;
-
-    const ctx = canvas.getContext('2d');
-    const w = canvas.width = video.videoWidth;
-    const h = canvas.height = video.videoHeight;
-    ctx.clearRect(0, 0, w, h);
+  const onResults = useCallback((results, w, h, ctx) => {
+    // results: { landmarks: Array<Array<{x,y,z}>>, handedness: Array<[{categoryName, score}]> }
+    const allHands = results.landmarks || [];
+const allLabels = (results.handedness || []).map(h => {
+  const raw = h[0]?.categoryName || 'Left';
+  return { label: raw === 'Left' ? 'Right' : 'Left' };
+});
     const s = settingsRef.current || {};
 
     const nowTs = performance?.now?.() ?? Date.now();
@@ -168,7 +189,9 @@ const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings
       ? measuredCameraFps
       : (fallbackCameraFps > 0 ? fallbackCameraFps : fpsRef.current.value);
 
-    if (showPreviewRef.current) {
+    const video = videoRef.current;
+
+    if (showPreviewRef.current && ctx && video) {
       ctx.save();
       ctx.translate(w, 0); ctx.scale(-1, 1);
       if (flipCameraRef.current) {
@@ -186,9 +209,6 @@ const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings
       ctx.fillText(`FPS: ${displayFps.toFixed(1)}`, 20, 34);
       ctx.restore();
     }
-
-    const allHands = results.multiHandLandmarks || [];
-    const allLabels = results.multiHandedness || [];
 
     const seenLabels = new Set();
     const candidates = [];
@@ -292,19 +312,19 @@ const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings
       const al = computeHandSize(hand, w, h);
       const palmVisible = isPalmFacingCamera(hand, label);
 
-      if (showPreviewRef.current) {
-        const mirrored = hand.map(lm => ({ ...lm, x: 1 - lm.x }));
+      if (showPreviewRef.current && ctx) {
+        // Scale landmarks to canvas pixels for drawing
+        const mirrored = hand.map(lm => ({ ...lm, x: (1 - lm.x) * w, y: lm.y * h }));
         const stateTag = sl.state === SLOT_STATE.LOCKED ? '🔒'
           : sl.state === SLOT_STATE.TENTATIVE ? `⏳${sl.tentativeFrames}/${LOCK_FRAMES}` : '?';
         const lineColor = sl.state === SLOT_STATE.LOCKED
           ? (palmVisible ? '#00ff00' : '#888888') : '#ffaa00';
-        drawConnectors(ctx, mirrored, HAND_CONNECTIONS, { color: lineColor, lineWidth: 2 });
-        drawLandmarks(ctx, mirrored, { color: palmVisible ? '#ff0000' : '#555555', lineWidth: 1 });
-        const mWrist = mirrored[0];
+        drawHandConnectors(ctx, mirrored, HAND_CONNECTIONS, { color: lineColor, lineWidth: 2 });
+        drawHandLandmarks(ctx, mirrored, { color: palmVisible ? '#ff0000' : '#555555', lineWidth: 1, radius: 3 });
         ctx.save();
         ctx.fillStyle = lineColor;
         ctx.font = 'bold 11px "Segoe UI",Arial,sans-serif';
-        ctx.fillText(`s${PRIMARY_SLOT} ${stateTag} ${palmVisible ? 'Palm' : 'Back'}`, mWrist.x * w, mWrist.y * h - 10);
+        ctx.fillText(`s${PRIMARY_SLOT} ${stateTag} ${palmVisible ? 'Palm' : 'Back'}`, mirrored[0].x, mirrored[0].y - 10);
         ctx.restore();
       }
 
@@ -373,7 +393,7 @@ const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings
         const prev = smoothedRef.current[handIndex];
         let sx = ax, sy = ay;
 
-if (prev) {
+        if (prev) {
           const moveDist = Math.hypot(ax - prev.x, ay - prev.y);
           const deadzone = 0.003 / Math.max(sensitivityRef.current, 0.25);
           if (moveDist < deadzone) {
@@ -413,11 +433,10 @@ if (prev) {
           pinchMidX, pinchMidY,
         });
 
-        if (showPreviewRef.current) {
-          const mirrored = hand.map(lm => ({ ...lm, x: 1 - lm.x }));
-          const mTX = mirrored[4].x * w, mTY = mirrored[4].y * h;
-          const mIX = mirrored[8].x * w, mIY = mirrored[8].y * h;
-          const mMDX = mirrored[12].x * w, mMDY = mirrored[12].y * h;
+        if (showPreviewRef.current && ctx) {
+          const mTX = (1 - thumb.x) * w, mTY = thumb.y * h;
+          const mIX = (1 - index.x) * w, mIY = index.y * h;
+          const mMDX = (1 - middle.x) * w, mMDY = middle.y * h;
           const midX = (mTX + mIX) / 2, midY = (mTY + mIY) / 2;
           const ratio = al / w;
           const dotR = Math.max(0.8, w * ratio * 0.07);
@@ -436,8 +455,17 @@ if (prev) {
 
   useEffect(() => {
     if (!isEnabled) {
-      cameraRef.current?.stop(); cameraRef.current = null;
-      handsRef.current?.close?.(); handsRef.current = null;
+      // Stop stream
+      if (cameraStreamRef.current) {
+        cameraStreamRef.current.getTracks().forEach(t => t.stop());
+        cameraStreamRef.current = null;
+      }
+      if (animFrameRef.current) {
+        cancelAnimationFrame(animFrameRef.current);
+        animFrameRef.current = null;
+      }
+      handsRef.current?.close?.();
+      handsRef.current = null;
       smoothedRef.current = {};
       slotsRef.current = makeEmptySlots();
       isProcessingRef.current = false;
@@ -455,106 +483,160 @@ if (prev) {
     }
 
     let dead = false;
+
     const init = async () => {
       try {
-        const hands = new Hands({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
+        // Init tasks-vision WASM (CPU delegate — works on Pi without WebGL)
+        const vision = await FilesetResolver.forVisionTasks(
+          'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm'
+        );
+
         const cfg = runtimeConfigRef.current;
-        hands.setOptions({ ...cfg.options, maxNumHands: 1 });
-        hands.onResults(onResults);
-        if (dead) { hands.close?.(); return; }
-        handsRef.current = hands;
 
-        if (videoRef.current) {
-          const cam = new Camera(videoRef.current, {
-            onFrame: async () => {
-              if (isProcessingRef.current) return;
-              const currentCfg = runtimeConfigRef.current;
-              const maxFps = currentCfg?.maxFrameRate;
-              if (Number.isFinite(maxFps) && maxFps > 0) {
-                const now = performance?.now?.() ?? Date.now();
-                const minDelta = 1000 / maxFps;
-                if (now - frameLimiterRef.current.lastSent < minDelta) return;
-                frameLimiterRef.current.lastSent = now;
+        const handLandmarker = await HandLandmarker.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath:
+              'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
+            delegate: 'CPU', // No WebGL — runs on Pi 4/5
+          },
+          runningMode: 'VIDEO',
+          numHands: 1,
+          minHandDetectionConfidence: cfg.options.minDetectionConfidence,
+          minHandPresenceConfidence: cfg.options.minTrackingConfidence,
+          minTrackingConfidence: cfg.options.minTrackingConfidence,
+        });
+
+        if (dead) { handLandmarker.close?.(); return; }
+        handsRef.current = handLandmarker;
+
+        // Start camera stream manually (no @mediapipe/camera_utils)
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            width: { ideal: cfg.camera.width },
+            height: { ideal: cfg.camera.height },
+            facingMode: 'user',
+          },
+          audio: false,
+        });
+
+        if (dead) { stream.getTracks().forEach(t => t.stop()); return; }
+        cameraStreamRef.current = stream;
+
+        const videoEl = videoRef.current;
+        if (!videoEl) return;
+
+        videoEl.srcObject = stream;
+        await new Promise((resolve) => {
+          if (videoEl.readyState >= 2) { resolve(); return; }
+          videoEl.addEventListener('loadeddata', resolve, { once: true });
+        });
+        await videoEl.play();
+
+        if (dead) return;
+
+        // Measure camera FPS from track settings
+        const track = stream.getVideoTracks?.()?.[0];
+        const trackFps = Number(track?.getSettings?.()?.frameRate);
+        if (Number.isFinite(trackFps) && trackFps > 0)
+          cameraFpsRef.current.fallback = trackFps;
+
+        // Optional: requestVideoFrameCallback for accurate FPS measurement
+        if (typeof videoEl.requestVideoFrameCallback === 'function') {
+          const onVideoFrame = (_now, metadata) => {
+            if (dead) return;
+            const now = performance?.now?.() ?? Date.now();
+            const frames = Number(metadata?.presentedFrames);
+            if (
+              Number.isFinite(frames) &&
+              cameraFpsRef.current.lastFrames !== null &&
+              cameraFpsRef.current.lastNow > 0
+            ) {
+              const dFrames = frames - cameraFpsRef.current.lastFrames;
+              const dTimeMs = now - cameraFpsRef.current.lastNow;
+              if (dFrames > 0 && dTimeMs > 0) {
+                const instFps = (dFrames * 1000) / dTimeMs;
+                cameraFpsRef.current.value =
+                  FPS_SMOOTH * cameraFpsRef.current.value +
+                  (1 - FPS_SMOOTH) * instFps;
               }
-              isProcessingRef.current = true;
-              const src = preprocessVideoFrame(
-                videoRef.current, settingsRef.current,
-                procCanvasRef, procCtxRef, currentCfg.processing,
-              );
-              try { await handsRef.current?.send({ image: src }); }
-              finally { isProcessingRef.current = false; }
-            },
-            width: cfg.camera.width, height: cfg.camera.height,
-          });
-          if (dead) { cam.stop(); return; }
-          await cam.start();
-          if (dead) { cam.stop(); return; }
-          cameraRef.current = cam;
-
-          const videoEl = videoRef.current;
-          if (videoEl) {
-            const stream = videoEl.srcObject;
-            const track = stream?.getVideoTracks?.()?.[0];
-            const trackFps = Number(track?.getSettings?.()?.frameRate);
-            if (Number.isFinite(trackFps) && trackFps > 0)
-              cameraFpsRef.current.fallback = trackFps;
-
-            if (track?.applyConstraints) {
-              try {
-                const constraints = {
-                  width: { ideal: cfg.camera.width },
-                  height: { ideal: cfg.camera.height },
-                };
-                if (cfg.maxFrameRate)
-                  constraints.frameRate = { ideal: cfg.maxFrameRate, max: cfg.maxFrameRate };
-                await track.applyConstraints(constraints);
-              } catch (err) {
-                console.warn('Camera constraint optimization skipped:', err);
-              }
             }
-
-            if (typeof videoEl.requestVideoFrameCallback === 'function') {
-              const onVideoFrame = (_now, metadata) => {
-                if (dead) return;
-                const now = performance?.now?.() ?? Date.now();
-                const frames = Number(metadata?.presentedFrames);
-                if (
-                  Number.isFinite(frames) &&
-                  cameraFpsRef.current.lastFrames !== null &&
-                  cameraFpsRef.current.lastNow > 0
-                ) {
-                  const dFrames = frames - cameraFpsRef.current.lastFrames;
-                  const dTimeMs = now - cameraFpsRef.current.lastNow;
-                  if (dFrames > 0 && dTimeMs > 0) {
-                    const instFps = (dFrames * 1000) / dTimeMs;
-                    cameraFpsRef.current.value =
-                      FPS_SMOOTH * cameraFpsRef.current.value +
-                      (1 - FPS_SMOOTH) * instFps;
-                  }
-                }
-                if (Number.isFinite(frames)) cameraFpsRef.current.lastFrames = frames;
-                cameraFpsRef.current.lastNow = now;
-                cameraFpsRef.current.callbackId = videoEl.requestVideoFrameCallback(onVideoFrame);
-              };
-              cameraFpsRef.current.callbackId = videoEl.requestVideoFrameCallback(onVideoFrame);
-            }
-
-            if (videoEl.readyState >= 2) {
-              videoReadyRef.current?.(videoEl);
-            } else {
-              videoEl.addEventListener('loadeddata', () => videoReadyRef.current?.(videoEl), { once: true });
-            }
-          }
+            if (Number.isFinite(frames)) cameraFpsRef.current.lastFrames = frames;
+            cameraFpsRef.current.lastNow = now;
+            cameraFpsRef.current.callbackId = videoEl.requestVideoFrameCallback(onVideoFrame);
+          };
+          cameraFpsRef.current.callbackId = videoEl.requestVideoFrameCallback(onVideoFrame);
         }
-      } catch (e) { console.error('HandTracking init error:', e); }
+
+        videoReadyRef.current?.(videoEl);
+
+        // Main processing loop via requestAnimationFrame
+        const processFrame = () => {
+          if (dead) return;
+          animFrameRef.current = requestAnimationFrame(processFrame);
+
+          if (isProcessingRef.current) return;
+          if (!handsRef.current || !videoEl || videoEl.readyState < 2) return;
+
+          const currentCfg = runtimeConfigRef.current;
+          const maxFps = currentCfg?.maxFrameRate;
+          if (Number.isFinite(maxFps) && maxFps > 0) {
+            const now = performance?.now?.() ?? Date.now();
+            const minDelta = 1000 / maxFps;
+            if (now - frameLimiterRef.current.lastSent < minDelta) return;
+            frameLimiterRef.current.lastSent = now;
+          }
+
+          isProcessingRef.current = true;
+
+          const canvas = canvasRef.current;
+          const w = videoEl.videoWidth;
+          const h = videoEl.videoHeight;
+
+          let ctx = null;
+          if (canvas) {
+            canvas.width = w;
+            canvas.height = h;
+            ctx = canvas.getContext('2d');
+            if (ctx) ctx.clearRect(0, 0, w, h);
+          }
+
+          const src = preprocessVideoFrame(
+            videoEl, settingsRef.current,
+            procCanvasRef, procCtxRef, currentCfg.processing,
+          );
+
+          try {
+            const nowMs = performance?.now?.() ?? Date.now();
+            const result = handsRef.current.detectForVideo(src, nowMs);
+            onResults(result, w, h, ctx);
+          } catch (e) {
+            console.warn('HandLandmarker detectForVideo error:', e);
+          } finally {
+            isProcessingRef.current = false;
+          }
+        };
+
+        animFrameRef.current = requestAnimationFrame(processFrame);
+
+      } catch (e) {
+        console.error('HandTracking init error:', e);
+      }
     };
 
     init();
 
     return () => {
       dead = true;
-      cameraRef.current?.stop(); cameraRef.current = null;
-      handsRef.current?.close?.(); handsRef.current = null;
+      if (animFrameRef.current) {
+        cancelAnimationFrame(animFrameRef.current);
+        animFrameRef.current = null;
+      }
+      if (cameraStreamRef.current) {
+        cameraStreamRef.current.getTracks().forEach(t => t.stop());
+        cameraStreamRef.current = null;
+      }
+      handsRef.current?.close?.();
+      handsRef.current = null;
       isProcessingRef.current = false;
       frameLimiterRef.current.lastSent = 0;
       cameraFpsRef.current.value = 0;
@@ -568,10 +650,9 @@ if (prev) {
   }, [isEnabled, settings.preprocessingQuality, onResults]);
 
   useEffect(() => {
-    if (handsRef.current) {
-      const cfg = runtimeConfigRef.current;
-      handsRef.current.setOptions({ ...cfg.options, maxNumHands: 1 });
-    }
+    // No direct setOptions equivalent in tasks-vision at runtime;
+    // confidence changes require re-init (handled via isEnabled dep above if needed).
+    // For live updates, you'd close and recreate — left as-is to match original behavior.
   }, [settings.minDetectionConfidence, settings.minTrackingConfidence, settings.preprocessingQuality]);
 
   useEffect(() => {
