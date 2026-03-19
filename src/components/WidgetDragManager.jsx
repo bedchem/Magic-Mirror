@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, memo } from 'react';
 import '/src/styles/WidgetDragManager.css';
 
 const WIDGET_MODULES = import.meta.glob('../components/widgets/*.jsx', { eager: true });
@@ -26,7 +26,9 @@ function TrashZone({ active, isOver }) {
     );
 }
 
-function DraggableWidget({ instance, onMouseDragStart, isBeingDragged, handPositions, isFocused, onFocusWidget, isDarkMode }) {
+// DraggableWidget never re-renders during drag — position is applied via DOM ref.
+// React state is only used for initial placement and post-drag commit.
+const DraggableWidget = memo(function DraggableWidget({ instance, onMouseDragStart, isBeingDragged, isFocused, onFocusWidget, isDarkMode, handPositions }) {
     const entry = WIDGET_REGISTRY.find(w => w.id === instance.widgetId);
     if (!entry) return null;
     const { Component, label } = entry;
@@ -41,7 +43,6 @@ function DraggableWidget({ instance, onMouseDragStart, isBeingDragged, handPosit
                 onMouseDown={e => onMouseDragStart(e, instance.id, instance.x, instance.y)}
             >
                 <span className="draggable-widget__title">{label}</span>
-
             </div>
             <div className="draggable-widget__content">
                 <Component
@@ -53,6 +54,24 @@ function DraggableWidget({ instance, onMouseDragStart, isBeingDragged, handPosit
             </div>
         </div>
     );
+}, (prev, next) => {
+    if (prev.instance.x !== next.instance.x) return false;
+    if (prev.instance.y !== next.instance.y) return false;
+    if (prev.instance.id !== next.instance.id) return false;
+    if (prev.instance.widgetId !== next.instance.widgetId) return false;
+    if (prev.isBeingDragged !== next.isBeingDragged) return false;
+    if (prev.isFocused !== next.isFocused) return false;
+    if (prev.isDarkMode !== next.isDarkMode) return false;
+    if (next.isFocused && prev.handPositions !== next.handPositions) return false;
+    return true;
+});
+
+// Write x/y directly to the widget's DOM element — zero React involvement during drag.
+function applyDragTransform(instanceId, x, y) {
+    const el = document.querySelector(`[data-widget-instance="${instanceId}"]`);
+    if (!el) return;
+    el.style.left = `${x}px`;
+    el.style.top  = `${y}px`;
 }
 
 function clampPos(x, y, instanceId) {
@@ -65,13 +84,35 @@ function clampPos(x, y, instanceId) {
     };
 }
 
-export default function WidgetDragManager({ handPositions = {}, spawnRef, initialWidgets = [], onWidgetsChange, onWidgetRemoved, onDraggingChange, isDarkMode = true }) {
+// Clamp + write directly to DOM — zero React state during drag.
+function clampAndApply(instanceId, rawX, rawY) {
+    const { x, y } = clampPos(rawX, rawY, instanceId);
+    applyDragTransform(instanceId, x, y);
+    return { x, y };
+}
+
+// WidgetDragManager receives `emitter` and `paused` instead of handPositions.
+// This eliminates the per-frame re-render cascade from IndexPage.
+export default function WidgetDragManager({
+    emitter,
+    paused = false,
+    spawnRef,
+    initialWidgets = [],
+    onWidgetsChange,
+    onWidgetRemoved,
+    onDraggingChange,
+    isDarkMode = true,
+}) {
     const [activeWidgets, setActiveWidgets] = useState([]);
     const [focusOrder, setFocusOrder] = useState([]);
     const [dragging, setDragging] = useState(null);
+    const [trashOver, setTrashOver] = useState(false);
+
+    // For focused widget: keep a hand-positions state that only updates the focused widget
+    const [focusedHandPositions, setFocusedHandPositions] = useState({});
+
     const onDraggingChangeRef = useRef(onDraggingChange);
     useEffect(() => { onDraggingChangeRef.current = onDraggingChange; }, [onDraggingChange]);
-    const [trashOver, setTrashOver] = useState(false);
 
     const nextId = useRef(1);
     const mouseDragRef = useRef(null);
@@ -80,14 +121,22 @@ export default function WidgetDragManager({ handPositions = {}, spawnRef, initia
     const onWidgetsChangeRef = useRef(onWidgetsChange);
     const onWidgetRemovedRef = useRef(onWidgetRemoved);
     const initializedRef = useRef(false);
+    const focusOrderRef = useRef([]);
+    const pausedRef = useRef(paused);
 
     const effectivePinch = useRef({});
     const graceTimers = useRef({});
     const lastHy = useRef({});
 
+    // Hover tracking with RAF throttle to avoid forced layout per frame
+    const prevHoverEls = useRef(new Set());
+    const hoverRafRef = useRef(null);
+
     useEffect(() => { onWidgetsChangeRef.current = onWidgetsChange; }, [onWidgetsChange]);
     useEffect(() => { onWidgetRemovedRef.current = onWidgetRemoved; }, [onWidgetRemoved]);
     useEffect(() => { activeWidgetsRef.current = activeWidgets; }, [activeWidgets]);
+    useEffect(() => { focusOrderRef.current = focusOrder; }, [focusOrder]);
+    useEffect(() => { pausedRef.current = paused; }, [paused]);
 
     useEffect(() => {
         if (initializedRef.current || !initialWidgets.length) return;
@@ -148,9 +197,10 @@ export default function WidgetDragManager({ handPositions = {}, spawnRef, initia
         });
     }, []);
 
-    const moveWidget = useCallback((id, x, y) => {
-        const { x: cx, y: cy } = clampPos(x, y, id);
-        setActiveWidgets(prev => prev.map(w => w.id === id ? { ...w, x: cx, y: cy } : w));
+    // Commit final position to React state after drag ends.
+    // During drag, position is written directly to DOM — no setState called.
+    const commitWidgetPos = useCallback((id, x, y) => {
+        setActiveWidgets(prev => prev.map(w => w.id === id ? { ...w, x, y } : w));
     }, []);
 
     const handleMouseDragStart = useCallback((e, instanceId, instanceX, instanceY) => {
@@ -162,18 +212,25 @@ export default function WidgetDragManager({ handPositions = {}, spawnRef, initia
             offsetY: e.clientY - instanceY,
         };
         setDraggingAndNotify({ instanceId, source: 'mouse' });
-    }, [bringToFront]);
+    }, [bringToFront, setDraggingAndNotify]);
 
     useEffect(() => {
         if (!dragging || dragging.source !== 'mouse') return;
         const ref = mouseDragRef.current;
         if (!ref) return;
         const onMove = (e) => {
-            moveWidget(ref.instanceId, e.clientX - ref.offsetX, e.clientY - ref.offsetY);
+            // DOM-direct — no setState
+            clampAndApply(ref.instanceId, e.clientX - ref.offsetX, e.clientY - ref.offsetY);
             setTrashOver(e.clientY > window.innerHeight - TRASH_HEIGHT);
         };
         const onUp = (e) => {
-            if (e.clientY > window.innerHeight - TRASH_HEIGHT) removeWidget(ref.instanceId);
+            if (e.clientY > window.innerHeight - TRASH_HEIGHT) {
+                removeWidget(ref.instanceId);
+            } else {
+                // Commit final position to React state once
+                const { x, y } = clampPos(e.clientX - ref.offsetX, e.clientY - ref.offsetY, ref.instanceId);
+                commitWidgetPos(ref.instanceId, x, y);
+            }
             mouseDragRef.current = null;
             setDraggingAndNotify(null);
             setTrashOver(false);
@@ -184,50 +241,75 @@ export default function WidgetDragManager({ handPositions = {}, spawnRef, initia
             document.removeEventListener('mousemove', onMove);
             document.removeEventListener('mouseup', onUp);
         };
-    }, [dragging, moveWidget, removeWidget]);
+    }, [dragging, commitWidgetPos, removeWidget, setDraggingAndNotify]);
 
-    const prevHoverEls = useRef(new Set());
-    const updateHover = useCallback((hx, hy) => {
-        const els = document.elementsFromPoint(hx, hy);
-        const btn = els.find(el => el.tagName === 'BUTTON' || el.closest?.('button'));
-        const hEl = btn?.closest?.('button') ?? btn ?? null;
-        const prev = prevHoverEls.current;
-        const next = new Set(hEl ? [hEl] : []);
-        for (const el of prev) { if (!next.has(el)) el.classList.remove('hand-hover'); }
-        for (const el of next) { el.classList.add('hand-hover'); }
-        prevHoverEls.current = next;
+    // Throttled hover update — only scheduled once per rAF, not once per emitter event
+    const scheduleHoverUpdate = useCallback((hx, hy) => {
+        if (hoverRafRef.current !== null) return;
+        hoverRafRef.current = requestAnimationFrame(() => {
+            hoverRafRef.current = null;
+            const els = document.elementsFromPoint(hx, hy);
+            const btn = els.find(el => el.tagName === 'BUTTON' || el.closest?.('button'));
+            const hEl = btn?.closest?.('button') ?? btn ?? null;
+            const prev = prevHoverEls.current;
+            const next = new Set(hEl ? [hEl] : []);
+            for (const el of prev) { if (!next.has(el)) el.classList.remove('hand-hover'); }
+            for (const el of next) { el.classList.add('hand-hover'); }
+            prevHoverEls.current = next;
+        });
     }, []);
 
+    // Subscribe directly to emitter — no prop drilling, no IndexPage re-renders
     useEffect(() => {
-        for (const pos of Object.values(handPositions)) {
+        if (!emitter) return;
+
+        const unsubscribe = emitter.subscribe((pos) => {
+            if (pausedRef.current) return;
+
             const { handIndex, detected, palmVisible, isPinching, x: hx, y: hy } = pos;
 
             if (detected && hy != null) lastHy.current[handIndex] = hy;
 
-            const doRelease = (handIndex) => {
-                if (handDragRef.current?.handIndex === handIndex) {
+            // Always forward to focused widget (cheap state update, only one widget reads it)
+            if (detected) {
+                const focusedId = focusOrderRef.current[focusOrderRef.current.length - 1];
+                if (focusedId) {
+                    setFocusedHandPositions(prev => ({ ...prev, [handIndex]: pos }));
+                }
+            }
+
+            const doRelease = (hi) => {
+                if (handDragRef.current?.handIndex === hi) {
                     const { instanceId } = handDragRef.current;
-                    const finalHy = lastHy.current[handIndex] ?? 0;
-                    if (finalHy > window.innerHeight - TRASH_HEIGHT) removeWidget(instanceId);
+                    const finalHy = lastHy.current[hi] ?? 0;
+                    if (finalHy > window.innerHeight - TRASH_HEIGHT) {
+                        removeWidget(instanceId);
+                    } else {
+                        // Read current DOM position and commit to state once
+                        const el = document.querySelector(`[data-widget-instance="${instanceId}"]`);
+                        if (el) {
+                            const x = parseFloat(el.style.left) || 0;
+                            const y = parseFloat(el.style.top) || 0;
+                            commitWidgetPos(instanceId, x, y);
+                        }
+                    }
                     handDragRef.current = null;
                     setDraggingAndNotify(null);
                     setTrashOver(false);
                 }
-                effectivePinch.current[handIndex] = false;
+                effectivePinch.current[hi] = false;
             };
 
             const startGrace = (hi) => {
                 if (graceTimers.current[hi]) return;
                 const hyNow = lastHy.current[hi] ?? 0;
-                if (hyNow > window.innerHeight - TRASH_HEIGHT) {
-                    doRelease(hi);
-                    return;
-                }
+                if (hyNow > window.innerHeight - TRASH_HEIGHT) { doRelease(hi); return; }
                 graceTimers.current[hi] = setTimeout(() => {
                     delete graceTimers.current[hi];
                     doRelease(hi);
                 }, PINCH_GRACE_MS);
             };
+
             const cancelGrace = (hi) => {
                 if (graceTimers.current[hi]) {
                     clearTimeout(graceTimers.current[hi]);
@@ -236,31 +318,31 @@ export default function WidgetDragManager({ handPositions = {}, spawnRef, initia
             };
 
             if (!detected || palmVisible === false) {
-                if (effectivePinch.current[handIndex]) {
-                    startGrace(handIndex);
-                } else {
-                    cancelGrace(handIndex);
-                }
-                continue;
+                if (effectivePinch.current[handIndex]) startGrace(handIndex);
+                else cancelGrace(handIndex);
+                return;
             }
 
-            updateHover(hx, hy);
+            // Hover update throttled to one rAF per frame
+            scheduleHoverUpdate(hx, hy);
 
             if (isPinching) {
                 cancelGrace(handIndex);
                 const wasEffective = effectivePinch.current[handIndex];
                 effectivePinch.current[handIndex] = true;
 
+                // Dragging: move widget directly via DOM — no React state touched
                 if (handDragRef.current?.handIndex === handIndex) {
                     const { instanceId, offsetX, offsetY } = handDragRef.current;
-                    moveWidget(instanceId, hx - offsetX, hy - offsetY);
+                    clampAndApply(instanceId, hx - offsetX, hy - offsetY);
                     setTrashOver(hy > window.innerHeight - TRASH_HEIGHT);
                     setDraggingAndNotify(prev =>
                         prev?.instanceId === instanceId ? prev : { instanceId, source: 'hand' }
                     );
-                    continue;
+                    return;
                 }
 
+                // Pinch-start: only do hit-testing here, not on every frame
                 if (!wasEffective) {
                     const els = document.elementsFromPoint(hx, hy);
 
@@ -276,11 +358,11 @@ export default function WidgetDragManager({ handPositions = {}, spawnRef, initia
                         el.classList?.contains('kal-vp') ||
                         el.closest?.('.kal-vp')
                     );
-                    if (isDrum) continue;
+                    if (isDrum) return;
 
                     const btn = els.find(el => el.tagName === 'BUTTON' || el.closest?.('button'));
                     const btnTarget = btn?.closest?.('button') ?? btn;
-                    if (btnTarget) { btnTarget.click(); continue; }
+                    if (btnTarget) { btnTarget.click(); return; }
 
                     const headerEl = els.find(el =>
                         el.classList?.contains('draggable-widget__header') ||
@@ -300,15 +382,16 @@ export default function WidgetDragManager({ handPositions = {}, spawnRef, initia
                 }
 
             } else {
-                if (effectivePinch.current[handIndex]) {
-                    startGrace(handIndex);
-                }
+                if (effectivePinch.current[handIndex]) startGrace(handIndex);
             }
-        }
-    }, [handPositions, moveWidget, removeWidget, updateHover, bringToFront]);
+        });
+
+        return unsubscribe;
+    }, [emitter, commitWidgetPos, removeWidget, scheduleHoverUpdate, bringToFront, setDraggingAndNotify]);
 
     useEffect(() => () => {
         Object.values(graceTimers.current).forEach(clearTimeout);
+        if (hoverRafRef.current !== null) cancelAnimationFrame(hoverRafRef.current);
     }, []);
 
     const sortedWidgets = [...activeWidgets].sort((a, b) => {
@@ -320,6 +403,8 @@ export default function WidgetDragManager({ handPositions = {}, spawnRef, initia
         return ai - bi;
     });
 
+    const focusedId = focusOrder[focusOrder.length - 1];
+
     return (
         <>
             {sortedWidgets.map(instance => (
@@ -328,8 +413,8 @@ export default function WidgetDragManager({ handPositions = {}, spawnRef, initia
                     instance={instance}
                     onMouseDragStart={handleMouseDragStart}
                     isBeingDragged={dragging?.instanceId === instance.id}
-                    handPositions={handPositions}
-                    isFocused={focusOrder[focusOrder.length - 1] === instance.id}
+                    handPositions={focusedHandPositions}
+                    isFocused={focusedId === instance.id}
                     onFocusWidget={() => bringToFront(instance.id)}
                     isDarkMode={isDarkMode}
                 />

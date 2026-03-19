@@ -3,7 +3,7 @@ import HandTrackingService from '../components/HandTrackingService';
 import WidgetDragManager from '../components/WidgetDragManager';
 import notificationImage from '../assets/notification.png';
 
-const DEBUG = false;
+const DEBUG = true;
 const ONLINE = false;
 const ONLINE_UUID = 'online-user-default';
 const pi = true;
@@ -27,15 +27,15 @@ const GRAY_COLOR = '120,120,120';
 const GRAY_DOT = '180,180,180';
 
 const NAV_ITEMS = [
-  { label: 'Datetime', widgetId: 'DatetimeWidget', icon: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="30" height="30"><circle cx="12" cy="12" r="10" /><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2" /></svg>) },
-  { label: 'Kalender', widgetId: 'KalenderWidget', icon: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="30" height="30"><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>) },
-  { label: 'Timer', widgetId: 'TimerWidget', icon: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="30" height="30"><circle cx="12" cy="13" r="8" /><path strokeLinecap="round" strokeLinejoin="round" d="M12 13l3-2" /><path d="M9 2h6" /></svg>) },
-  { label: 'Wetter', widgetId: 'WetterWidget', icon: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="30" height="30"><path d="M17.5 19a4.5 4.5 0 000-9 6 6 0 10-11.7 1.5A3.5 3.5 0 006 19h11.5z" /></svg>) },
+  { label: 'Datetime',    widgetId: 'DatetimeWidget',    icon: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="30" height="30"><circle cx="12" cy="12" r="10" /><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2" /></svg>) },
+  { label: 'Kalender',    widgetId: 'KalenderWidget',    icon: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="30" height="30"><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>) },
+  { label: 'Timer',       widgetId: 'TimerWidget',       icon: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="30" height="30"><circle cx="12" cy="13" r="8" /><path strokeLinecap="round" strokeLinejoin="round" d="M12 13l3-2" /><path d="M9 2h6" /></svg>) },
+  { label: 'Wetter',      widgetId: 'WetterWidget',      icon: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="30" height="30"><path d="M17.5 19a4.5 4.5 0 000-9 6 6 0 10-11.7 1.5A3.5 3.5 0 006 19h11.5z" /></svg>) },
   { label: 'Stundenplan', widgetId: 'StundenplanWidget', icon: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="30" height="30"><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="3" y1="10" x2="21" y2="10" /><line x1="8" y1="10" x2="8" y2="22" /><line x1="16" y1="10" x2="16" y2="22" /></svg>) },
-  { label: 'Stocks', widgetId: 'StocksWidget', icon: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20"><path d="M3 3v18h18" /><path d="M7 14l4-4 3 3 5-6" /><circle cx="7" cy="14" r="1" /><circle cx="11" cy="10" r="1" /><circle cx="14" cy="13" r="1" /><circle cx="19" cy="7" r="1" /></svg>) },
-  { label: 'News', widgetId: 'NewsWidget', icon: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="30" height="30"><rect x="3" y="4" width="18" height="16" rx="2" /><line x1="7" y1="8" x2="17" y2="8" /><line x1="7" y1="12" x2="17" y2="12" /><line x1="7" y1="16" x2="13" y2="16" /></svg>) },
-  { label: 'Zeichnen', widgetId: 'ZeichnenWidget', icon: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="30" height="30"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 113 3L7 19l-4 1 1-4 12.5-12.5z" /></svg>) },
-  { label: 'Spotify', widgetId: 'SpotifyWidget', icon: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="30" height="30"><path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" /></svg>) },
+  { label: 'Stocks',      widgetId: 'StocksWidget',      icon: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20"><path d="M3 3v18h18" /><path d="M7 14l4-4 3 3 5-6" /><circle cx="7" cy="14" r="1" /><circle cx="11" cy="10" r="1" /><circle cx="14" cy="13" r="1" /><circle cx="19" cy="7" r="1" /></svg>) },
+  { label: 'News',        widgetId: 'NewsWidget',        icon: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="30" height="30"><rect x="3" y="4" width="18" height="16" rx="2" /><line x1="7" y1="8" x2="17" y2="8" /><line x1="7" y1="12" x2="17" y2="12" /><line x1="7" y1="16" x2="13" y2="16" /></svg>) },
+  { label: 'Zeichnen',    widgetId: 'ZeichnenWidget',    icon: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="30" height="30"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 113 3L7 19l-4 1 1-4 12.5-12.5z" /></svg>) },
+  { label: 'Spotify',     widgetId: 'SpotifyWidget',     icon: (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="30" height="30"><path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" /></svg>) },
 ];
 
 const MIN_INTERVAL = 3 * 60 * 1000;
@@ -45,12 +45,6 @@ function getRandomInterval() {
 }
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-function rfidUidToUuid(uid) {
-  const hex = uid.replace(/\s+/g, '').toLowerCase();
-  const padded = hex.padEnd(32, '0');
-  return `${padded.slice(0, 8)}-${padded.slice(8, 12)}-${padded.slice(12, 16)}-${padded.slice(16, 20)}-${padded.slice(20, 32)}`;
-}
 
 const LocalStorageUtils = {
   getUser: (uuid) => { try { const data = localStorage.getItem(`user-${uuid}`); return data ? JSON.parse(data) : null; } catch (e) { return null; } },
@@ -76,6 +70,32 @@ const NAME_KEYBOARD_ROWS = [
   ['Z', 'X', 'C', 'V', 'B', 'N', 'M'],
 ];
 const ONBOARDING_PINCH_DEBOUNCE_MS = 220;
+
+// ---------------------------------------------------------------------------
+// Global hand-position emitter — zero React re-renders per frame
+// ---------------------------------------------------------------------------
+
+// handPositionEmitter is a module-level singleton so HandNav / WidgetDragManager
+// can subscribe without being re-rendered by IndexPage.
+const handPositionEmitter = {
+  _subscribers: new Set(),
+  subscribe(fn) { this._subscribers.add(fn); return () => this._subscribers.delete(fn); },
+  emit(pos) { for (const fn of this._subscribers) fn(pos); },
+};
+
+// Hook for components that need hand positions as a ref (no re-render).
+// Returns a ref whose .current is always { [handIndex]: latestPos }.
+export function useHandPositionsRef() {
+  const ref = useRef({});
+  useEffect(() => {
+    return handPositionEmitter.subscribe((pos) => {
+      ref.current = { ...ref.current, [pos.handIndex ?? 0]: pos };
+    });
+  }, []);
+  return ref;
+}
+
+// ---------------------------------------------------------------------------
 
 function LockClock() {
   const [time, setTime] = useState(new Date());
@@ -126,13 +146,14 @@ function UUIDModal({ onConfirm, onCancel }) {
   );
 }
 
-function NameOnboarding({ uuid, handPositions, onComplete, onCancel, isDarkMode = false }) {
+function NameOnboarding({ uuid, onComplete, onCancel, isDarkMode = false }) {
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [hoveredKey, setHoveredKey] = useState(null);
   const wasPinching = useRef({});
   const lastPinchTsRef = useRef(0);
+
   const addChar = useCallback((char) => { setName(prev => prev.length >= 22 ? prev : prev + char); }, []);
   const applyKey = useCallback((key) => {
     setError('');
@@ -142,6 +163,7 @@ function NameOnboarding({ uuid, handPositions, onComplete, onCancel, isDarkMode 
     if (key === 'DONE') return;
     addChar(key);
   }, [addChar]);
+
   const handleSave = useCallback(async () => {
     const trimmed = name.trim();
     if (trimmed.length < 2) { setError('Please enter at least 2 letters.'); return; }
@@ -156,26 +178,28 @@ function NameOnboarding({ uuid, handPositions, onComplete, onCancel, isDarkMode 
     } catch (e) { setError('Saving name failed. Please try again.'); }
     finally { setSaving(false); }
   }, [name, onComplete, uuid]);
+
+  // Subscribe directly to emitter — no handPositions prop needed, no re-render cascade
   useEffect(() => {
-    let newHoveredKey = null;
-    for (const pos of Object.values(handPositions)) {
+    return handPositionEmitter.subscribe((pos) => {
       const { handIndex = 0, detected, palmVisible, isPinching, x, y } = pos;
       const wasPinch = wasPinching.current[handIndex] || false;
-      if (!detected || palmVisible === false) { wasPinching.current[handIndex] = false; continue; }
+      if (!detected || palmVisible === false) { wasPinching.current[handIndex] = false; return; }
       const els = document.elementsFromPoint(x, y);
       const keyTarget = els.find(el => el?.dataset?.keyboardKey || el?.closest?.('[data-keyboard-key]'));
       const keyEl = keyTarget?.dataset?.keyboardKey ? keyTarget : keyTarget?.closest?.('[data-keyboard-key]');
       const key = keyEl?.dataset?.keyboardKey;
-      if (key) newHoveredKey = key;
+      if (key) setHoveredKey(key);
+      else setHoveredKey(null);
       if (isPinching && !wasPinch) {
         const now = Date.now();
-        if (now - lastPinchTsRef.current < ONBOARDING_PINCH_DEBOUNCE_MS) { wasPinching.current[handIndex] = true; continue; }
+        if (now - lastPinchTsRef.current < ONBOARDING_PINCH_DEBOUNCE_MS) { wasPinching.current[handIndex] = true; return; }
         if (key) { lastPinchTsRef.current = now; if (key === 'DONE') handleSave(); else applyKey(key); }
       }
       wasPinching.current[handIndex] = !!isPinching;
-    }
-    setHoveredKey(newHoveredKey);
-  }, [handPositions, applyKey, handleSave]);
+    });
+  }, [applyKey, handleSave]);
+
   return (
     <div className={`name-onboarding-overlay${!isDarkMode ? ' name-onboarding-overlay--light' : ''}`} role="dialog" aria-modal="true">
       <div className={`name-onboarding-card${!isDarkMode ? ' name-onboarding-card--light' : ''}`}>
@@ -208,7 +232,7 @@ function NameOnboarding({ uuid, handPositions, onComplete, onCancel, isDarkMode 
   );
 }
 
-function LockScreen({ onUnlock, demoMode = false }) {
+function LockScreen({ onUnlock }) {
   const [phase, setPhase] = useState('idle');
   const [showModal, setShowModal] = useState(false);
   const pollingRef = useRef(null);
@@ -226,35 +250,16 @@ function LockScreen({ onUnlock, demoMode = false }) {
         const res = await fetch('http://localhost:3000/api/rfid/last');
         if (!res.ok) return;
         const data = await res.json();
-
         if (!data.uid || data.uid === lastRFIDRef.current) return;
         lastRFIDRef.current = data.uid;
-
-        if (DEBUG) console.log('[Frontend] RFID Scan detected:', { uid: data.uid, uuid: data.uuid, user: data.user });
-
-        if (ONLINE) {
-          triggerUnlock(ONLINE_UUID);
-        } else {
-          const uuid = data.uuid;
-          const user = data.user;
-
-          if (!uuid) {
-            if (DEBUG) console.warn('[Frontend] RFID: UUID fehlt in Response');
-            return;
-          }
-          if (!user) {
-            if (DEBUG) console.warn('[Frontend] RFID: user Object fehlt in Response');
-            return;
-          }
-
-          if (DEBUG) console.log('[Frontend] RFID: Triggering unlock with', { uuid, user });
-          triggerUnlock({ uuid, user });
-        }
+        if (ONLINE) { triggerUnlock(ONLINE_UUID); return; }
+        const { uuid, user } = data;
+        if (!uuid || !user) return;
+        triggerUnlock({ uuid, user });
       } catch (e) {
         console.error('[Frontend] RFID polling fehler:', e);
       }
     };
-
     pollingRef.current = setInterval(pollNFC, 500);
     return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
   }, [triggerUnlock]);
@@ -293,40 +298,55 @@ function LockScreen({ onUnlock, demoMode = false }) {
   );
 }
 
-function HandNav({ handPositions, onSpawnWidget }) {
+// HandNav subscribes directly to the emitter — no prop drilling, no re-renders from IndexPage
+function HandNav({ onSpawnWidget }) {
   const [expanded, setExpanded] = useState(false);
   const [hoveredIdx, setHoveredIdx] = useState(null);
   const plusRef = useRef(null);
   const itemRefs = useRef([]);
   const wasPinching = useRef({});
+  const expandedRef = useRef(expanded);
+  const onSpawnRef = useRef(onSpawnWidget);
+
+  useEffect(() => { expandedRef.current = expanded; }, [expanded]);
+  useEffect(() => { onSpawnRef.current = onSpawnWidget; }, [onSpawnWidget]);
+
   useEffect(() => {
-    const positions = Object.values(handPositions);
-    if (!positions.length) return;
-    const plusEl = plusRef.current;
-    if (!plusEl) return;
-    const plusRect = plusEl.getBoundingClientRect();
-    let handOverMenu = false;
-    for (const pos of positions) {
-      if (!pos.detected || pos.palmVisible === false) continue;
+    return handPositionEmitter.subscribe((pos) => {
+      if (!pos.detected || pos.palmVisible === false) return;
       const { x, y, isPinching, handIndex } = pos;
+      const plusEl = plusRef.current;
+      if (!plusEl) return;
+      const plusRect = plusEl.getBoundingClientRect();
       const MARGIN = 40;
-      const overPlus = x >= plusRect.left - MARGIN && x <= plusRect.right + MARGIN && y >= plusRect.top - MARGIN && y <= plusRect.bottom + MARGIN;
-      if (overPlus) handOverMenu = true;
-      if (expanded) {
-        let found = null;
+      const overPlus =
+        x >= plusRect.left - MARGIN && x <= plusRect.right + MARGIN &&
+        y >= plusRect.top - MARGIN && y <= plusRect.bottom + MARGIN;
+
+      let handOverMenu = overPlus;
+      let found = null;
+
+      if (expandedRef.current) {
         itemRefs.current.forEach((el, i) => {
           if (!el) return;
           const r = el.getBoundingClientRect();
-          if (x >= r.left - 20 && x <= r.right + 20 && y >= r.top - 10 && y <= r.bottom + 10) { found = i; handOverMenu = true; }
+          if (x >= r.left - 20 && x <= r.right + 20 && y >= r.top - 10 && y <= r.bottom + 10) {
+            found = i;
+            handOverMenu = true;
+          }
         });
         setHoveredIdx(found);
-        if (isPinching && !wasPinching.current[handIndex] && found !== null) onSpawnWidget(NAV_ITEMS[found].widgetId);
+        if (isPinching && !wasPinching.current[handIndex] && found !== null) {
+          onSpawnRef.current(NAV_ITEMS[found].widgetId);
+        }
       }
+
       wasPinching.current[handIndex] = isPinching;
-    }
-    setExpanded(handOverMenu);
-    if (!handOverMenu) setHoveredIdx(null);
-  }, [handPositions, expanded, onSpawnWidget]);
+      setExpanded(handOverMenu);
+      if (!handOverMenu) setHoveredIdx(null);
+    });
+  }, []);
+
   return (
     <>
       <button ref={plusRef} onClick={() => setExpanded(v => !v)} className="hand-nav__toggle" data-expanded={expanded}>
@@ -351,10 +371,14 @@ function LiveCursor({ handIndex }) {
   const cursorRef = useRef(null);
   const dotRef = useRef(null);
   const ringRef = useRef(null);
+
   useEffect(() => {
-    if (!window.__updateHandCursor) window.__updateHandCursor = {};
-    window.__updateHandCursor[handIndex] = (pos) => {
-      const el = cursorRef.current; const dot = dotRef.current; const ring = ringRef.current;
+    const el = cursorRef.current;
+    const dot = dotRef.current;
+    const ring = ringRef.current;
+
+    return handPositionEmitter.subscribe((pos) => {
+      if ((pos.handIndex ?? 0) !== handIndex) return;
       if (!el) return;
       if (!pos.detected) { el.style.opacity = '0'; return; }
       el.style.opacity = '1';
@@ -367,16 +391,18 @@ function LiveCursor({ handIndex }) {
       const size = 40 - s * 10;
       ring.style.width = `${size}px`; ring.style.height = `${size}px`;
       ring.style.borderColor = `rgba(${rc},${isPinching ? 0.8 + s * 0.2 : 0.75})`;
-      ring.style.boxShadow = palmOk ? `0 0 ${20 + s * 20}px rgba(${rc},${0.6 + s * 0.3}), 0 0 ${40 + s * 40}px rgba(${rc},${0.3 + s * 0.2})` : 'none';
+      ring.style.boxShadow = palmOk
+        ? `0 0 ${20 + s * 20}px rgba(${rc},${0.6 + s * 0.3}), 0 0 ${40 + s * 40}px rgba(${rc},${0.3 + s * 0.2})`
+        : 'none';
       ring.style.borderWidth = `${isPinching ? 3 + s * 2 : 3}px`;
       ring.style.background = `rgba(${rc},${palmOk ? 0.12 : 0.06})`;
       const dotSize = palmOk ? 4 + s * 4 : 3;
       dot.style.width = `${dotSize}px`; dot.style.height = `${dotSize}px`;
       dot.style.background = `rgba(${dc},1)`;
       dot.style.boxShadow = palmOk ? `0 0 8px rgba(${dc},1)` : 'none';
-    };
-    return () => { if (window.__updateHandCursor) delete window.__updateHandCursor[handIndex]; };
+    });
   }, [handIndex]);
+
   return (
     <div ref={cursorRef} className="live-cursor">
       <div ref={ringRef} className="live-cursor__ring live-cursor__ring--circle" />
@@ -399,6 +425,7 @@ function HandStatusDot({ status, index }) {
   );
 }
 
+// StatusBar only re-renders in DEBUG mode when statuses change
 function StatusBar({ statuses }) {
   return <div className="status-bar">{statuses.map((s, i) => <HandStatusDot key={i} status={s} index={i} />)}</div>;
 }
@@ -418,15 +445,10 @@ function ThemeToggleButton({ isDarkMode, onToggle }) {
     <button className="theme-toggle-btn" onClick={onToggle} title={isDarkMode ? 'Light Mode' : 'Dark Mode'}>
       {isDarkMode ? (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="30" height="30">
-          <circle cx="12" cy="12" r="5" />
-          <line x1="12" y1="1" x2="12" y2="3" />
-          <line x1="12" y1="21" x2="12" y2="23" />
-          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-          <line x1="1" y1="12" x2="3" y2="12" />
-          <line x1="21" y1="12" x2="23" y2="12" />
-          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+          <circle cx="12" cy="12" r="5" /><line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" />
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+          <line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" />
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
         </svg>
       ) : (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="30" height="30">
@@ -440,11 +462,11 @@ function ThemeToggleButton({ isDarkMode, onToggle }) {
 export default function IndexPage() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+  // statuses only used in DEBUG mode — negligible cost
   const [statuses, setStatuses] = useState([
     { detected: false, isPinching: false, palmVisible: false },
     { detected: false, isPinching: false, palmVisible: false },
   ]);
-  const [handPositions, setHandPositions] = useState({});
   const [compliment, setCompliment] = useState('');
   const [complimentLoopStarted, setComplimentLoopStarted] = useState(false);
   const [savedWidgetPositions, setSavedWidgetPositions] = useState([]);
@@ -460,6 +482,11 @@ export default function IndexPage() {
   const activeWidgetsRef = useRef([]);
   const saveTimeoutRef = useRef(null);
   const welcomeTimeoutRef = useRef(null);
+  const currentUserRef = useRef(null);
+  const pendingNameSetupRef = useRef(null);
+
+  useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
+  useEffect(() => { pendingNameSetupRef.current = pendingNameSetup; }, [pendingNameSetup]);
 
   const showWelcomeMessage = useCallback((name) => {
     const safeName = (name || '').trim();
@@ -532,15 +559,22 @@ export default function IndexPage() {
     } catch (e) { }
   }, []);
 
-  const handleWidgetsChange = useCallback((widgets) => { activeWidgetsRef.current = widgets; if (currentUser) persistWidgetPositions(currentUser, widgets); }, [currentUser, persistWidgetPositions]);
-  const handleWidgetRemoved = useCallback((instanceId) => { if (currentUser) deletePersistedWidget(currentUser, instanceId); }, [currentUser, deletePersistedWidget]);
-  const handleTrackingVideoReady = useCallback((videoEl) => { if (!videoEl) return; videoRef.current = videoEl; }, []);
+  const handleWidgetsChange = useCallback((widgets) => {
+    activeWidgetsRef.current = widgets;
+    if (currentUserRef.current) persistWidgetPositions(currentUserRef.current, widgets);
+  }, [persistWidgetPositions]);
+
+  const handleWidgetRemoved = useCallback((instanceId) => {
+    if (currentUserRef.current) deletePersistedWidget(currentUserRef.current, instanceId);
+  }, [deletePersistedWidget]);
+
+  const handleTrackingVideoReady = useCallback((videoEl) => {
+    if (!videoEl) return;
+    videoRef.current = videoEl;
+  }, []);
 
   const handleLogout = useCallback(async () => {
-    try {
-      await fetch('http://localhost:3000/api/rfid/clear', { method: 'POST' });
-    } catch (e) { }
-
+    try { await fetch('http://localhost:3000/api/rfid/clear', { method: 'POST' }); } catch (e) { }
     clearTimeout(intervalRef.current);
     clearTimeout(saveTimeoutRef.current);
     clearTimeout(welcomeTimeoutRef.current);
@@ -570,44 +604,68 @@ export default function IndexPage() {
     else { showWelcomeMessage(userName); startComplimentFlow(); }
   }, [loadWidgetPositions, showWelcomeMessage, startComplimentFlow]);
 
-  const handleNameSetupDone = useCallback((name) => { setPendingNameSetup(null); showWelcomeMessage(name); startComplimentFlow(); }, [showWelcomeMessage, startComplimentFlow]);
+  const handleNameSetupDone = useCallback((name) => {
+    setPendingNameSetup(null);
+    showWelcomeMessage(name);
+    startComplimentFlow();
+  }, [showWelcomeMessage, startComplimentFlow]);
+
   const handleSpawnWidget = useCallback((widgetId) => { spawnRef.current?.(widgetId); }, []);
 
+  // Central hand position handler — emits to all subscribers, no setState per frame
   const handleHandPosition = useCallback((pos) => {
-    const idx = pos.handIndex ?? 0;
-    window.__updateHandCursor?.[idx]?.(pos);
+    // Always emit — LiveCursor, HandNav, WidgetDragManager all subscribe directly
+    handPositionEmitter.emit(pos);
+
+    // DEBUG-only status update (only runs when DEBUG=true)
     if (DEBUG) {
-      setStatuses(prev => { const next = [...prev]; next[idx] = { detected: pos.detected, isPinching: pos.isPinching || false, palmVisible: pos.palmVisible ?? true }; return next; });
+      const idx = pos.handIndex ?? 0;
+      setStatuses(prev => {
+        const next = [...prev];
+        next[idx] = { detected: pos.detected, isPinching: pos.isPinching || false, palmVisible: pos.palmVisible ?? true };
+        return next;
+      });
     }
-    setHandPositions(prev => ({ ...prev, [idx]: pos }));
   }, []);
 
   return (
     <div className="index-page">
-      <HandTrackingService settings={defaultSettings} enabled={true} onHandPosition={handleHandPosition} onVideoReady={handleTrackingVideoReady} flipCamera={pi} />
+      <HandTrackingService
+        settings={defaultSettings}
+        enabled={true}
+        onHandPosition={handleHandPosition}
+        onVideoReady={handleTrackingVideoReady}
+        flipCamera={pi}
+      />
 
-      {!loggedIn && <LockScreen onUnlock={handleUnlock} demoMode={DEBUG} />}
+      {!loggedIn && <LockScreen onUnlock={handleUnlock} />}
 
       {loggedIn && (
         <>
           {DEBUG && <StatusBar statuses={statuses} />}
           {DEBUG && !isDragging && <LogoutButton onLogout={handleLogout} />}
           {DEBUG && !isDragging && <ThemeToggleButton isDarkMode={isDarkMode} onToggle={() => setIsDarkMode(v => !v)} />}
-          {!pendingNameSetup && <HandNav handPositions={handPositions} onSpawnWidget={handleSpawnWidget} />}
+          {!pendingNameSetup && <HandNav onSpawnWidget={handleSpawnWidget} />}
           <WidgetDragManager
             key={currentUser}
-            handPositions={pendingNameSetup ? {} : handPositions}
             spawnRef={spawnRef}
             initialWidgets={savedWidgetPositions}
             onWidgetsChange={handleWidgetsChange}
             onWidgetRemoved={handleWidgetRemoved}
             onDraggingChange={setIsDragging}
             isDarkMode={isDarkMode}
+            emitter={handPositionEmitter}
+            paused={!!pendingNameSetup}
           />
           <LiveCursor handIndex={0} />
           <LiveCursor handIndex={1} />
           {pendingNameSetup && (
-            <NameOnboarding uuid={pendingNameSetup.uuid} handPositions={handPositions} onComplete={handleNameSetupDone} onCancel={handleLogout} isDarkMode={isDarkMode} />
+            <NameOnboarding
+              uuid={pendingNameSetup.uuid}
+              onComplete={handleNameSetupDone}
+              onCancel={handleLogout}
+              isDarkMode={isDarkMode}
+            />
           )}
           {welcomeText && <div className="welcome-greeting" role="status" aria-live="polite">{welcomeText}</div>}
           {compliment && (

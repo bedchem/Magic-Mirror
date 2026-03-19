@@ -115,7 +115,14 @@ function drawHandLandmarks(ctx, landmarks, { color = '#ff0000', lineWidth = 1, r
   ctx.restore();
 }
 
-const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings = {}, enabled, flipCamera = false }) => {
+const HandTrackingService = ({
+  onHandPosition,
+  onGesture,
+  onVideoReady,
+  settings = {},
+  enabled,
+  flipCamera = false,
+}) => {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const procCanvasRef = useRef(null);
@@ -138,6 +145,8 @@ const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings
   const cameraFpsRef = useRef({ value: 0, lastNow: 0, lastFrames: null, callbackId: null, fallback: 0 });
   const frameLimiterRef = useRef({ lastSent: 0 });
   const slotsRef = useRef(makeEmptySlots());
+  // Track last known canvas dimensions to avoid resizing every frame
+  const canvasDimsRef = useRef({ w: 0, h: 0 });
 
   const [previewPos, setPreviewPos] = useState({ x: 16, y: 16 });
   const [dragging, setDragging] = useState(false);
@@ -166,7 +175,11 @@ const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings
     videoReadyRef.current = null;
   }, []);
 
-  const onResults = useCallback((results, w, h, ctx) => {
+  // onResults is stored in a ref so the processFrame closure never becomes stale.
+  // This avoids recreating processFrame on every render while still reading
+  // the latest callback refs inside onResults.
+  const onResultsRef = useRef(null);
+  onResultsRef.current = useCallback((results, w, h, ctx) => {
     const allHands = results.landmarks || [];
     const allLabels = (results.handedness || []).map(h => {
       const raw = h[0]?.categoryName || 'Left';
@@ -453,6 +466,7 @@ const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings
         }
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -471,6 +485,7 @@ const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings
       slotsRef.current = makeEmptySlots();
       isProcessingRef.current = false;
       frameLimiterRef.current.lastSent = 0;
+      canvasDimsRef.current = { w: 0, h: 0 };
       cameraFpsRef.current.value = 0;
       cameraFpsRef.current.lastNow = 0;
       cameraFpsRef.current.lastFrames = null;
@@ -588,8 +603,13 @@ const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings
 
           let ctx = null;
           if (canvas) {
-            canvas.width = w;
-            canvas.height = h;
+            // Only resize canvas when dimensions actually change — avoids clearing
+            // and invalidating the GPU texture every single frame
+            if (canvasDimsRef.current.w !== w || canvasDimsRef.current.h !== h) {
+              canvas.width = w;
+              canvas.height = h;
+              canvasDimsRef.current = { w, h };
+            }
             ctx = canvas.getContext('2d');
             if (ctx) ctx.clearRect(0, 0, w, h);
           }
@@ -601,8 +621,9 @@ const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings
 
           try {
             const nowMs = performance?.now?.() ?? Date.now();
+            // Always read the latest onResults via ref — never stale
             const result = handsRef.current.detectForVideo(src, nowMs);
-            onResults(result, w, h, ctx);
+            onResultsRef.current(result, w, h, ctx);
           } catch (e) {
             console.warn('HandLandmarker detectForVideo error:', e);
           } finally {
@@ -633,6 +654,7 @@ const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings
       handsRef.current = null;
       isProcessingRef.current = false;
       frameLimiterRef.current.lastSent = 0;
+      canvasDimsRef.current = { w: 0, h: 0 };
       cameraFpsRef.current.value = 0;
       cameraFpsRef.current.lastNow = 0;
       cameraFpsRef.current.lastFrames = null;
@@ -641,10 +663,7 @@ const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings
         videoRef.current.cancelVideoFrameCallback(cameraFpsRef.current.callbackId);
       cameraFpsRef.current.callbackId = null;
     };
-  }, [isEnabled, settings.preprocessingQuality, onResults]);
-
-  useEffect(() => {
-  }, [settings.minDetectionConfidence, settings.minTrackingConfidence, settings.preprocessingQuality]);
+  }, [isEnabled, settings.preprocessingQuality]);
 
   useEffect(() => {
     if (!dragging) return;
