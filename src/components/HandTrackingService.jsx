@@ -168,7 +168,6 @@ const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings
   }, []);
 
   const onResults = useCallback((results, w, h, ctx) => {
-    // results: { landmarks: Array<Array<{x,y,z}>>, handedness: Array<[{categoryName, score}]> }
     const allHands = results.landmarks || [];
 const allLabels = (results.handedness || []).map(h => {
   const raw = h[0]?.categoryName || 'Left';
@@ -421,16 +420,22 @@ const allLabels = (results.handedness || []).map(h => {
           velY: ((prev?.velY ?? 0) * 0.6 + velY * 0.4),
         };
 
+        // Apply flipCamera transformation to coordinates
+        const finalX = flipCameraRef.current ? (1 - sx) * window.innerWidth : sx * window.innerWidth;
+        const finalY = flipCameraRef.current ? (1 - sy) * window.innerHeight : sy * window.innerHeight;
+        const finalPinchMidX = flipCameraRef.current ? window.innerWidth - pinchMidX : pinchMidX;
+        const finalPinchMidY = flipCameraRef.current ? window.innerHeight - pinchMidY : pinchMidY;
+
         posCallbackRef.current?.({
-          x: sx * window.innerWidth,
-          y: sy * window.innerHeight,
+          x: finalX,
+          y: finalY,
           detected: true, palmVisible: true,
           isPinching, pinchStrength: Math.min(pinchStr, 1), pinchDistance: normPinch,
           isClicking, clickStrength: Math.min(clickStr, 1),
           isFist, fistStrength: clamp01(1 - normPinky / fistThr),
           isHandOpen, pinkyThumbDistanceRatio: normPinky,
           handedness: label.toLowerCase(), handIndex, handSize: al,
-          pinchMidX, pinchMidY,
+          pinchMidX: finalPinchMidX, pinchMidY: finalPinchMidY,
         });
 
         if (showPreviewRef.current && ctx) {
