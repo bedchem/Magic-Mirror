@@ -411,8 +411,8 @@ app.listen(PORT, () => {
   console.log(`Compliment API: http://localhost:${PORT}/api/compliment`);
   console.log(`Weather API: http://localhost:${PORT}/weather`);
   console.log(`Stocks API: http://localhost:${PORT}/stocks/config`);
-  console.log('Spotify Links API: http://localhost:${PORT}/api/spotify-links'); 
-  console.log('Users API: http://localhost:${PORT}/api/users');
-  console.log('Widget Positions API: http://localhost:${PORT}/api/widget-positions/:uuid');
-  console.log('RFID API: http://localhost:${PORT}/api/rfid/last.       Up And RUNNINGGGG!!!');
+  console.log(`Spotify Links API: http://localhost:${PORT}/api/spotify-links`);
+  console.log(`Users API: http://localhost:${PORT}/api/users`);
+  console.log(`Widget Positions API: http://localhost:${PORT}/api/widget-positions/:uuid`);
+  console.log(`RFID API: http://localhost:${PORT}/api/rfid/last.       Up And RUNNINGGGG!!!`);
 });
