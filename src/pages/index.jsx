@@ -4,6 +4,8 @@ import WidgetDragManager from '../components/WidgetDragManager';
 import notificationImage from '../assets/notification.png';
 
 const DEBUG = true;
+const ONLINE = false;
+const ONLINE_UUID = 'online-user-default';
 
 const defaultSettings = {
   enabled: true,
@@ -42,6 +44,68 @@ function getRandomInterval() {
 }
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const LocalStorageUtils = {
+  getUser: (uuid) => {
+    try {
+      const data = localStorage.getItem(`user-${uuid}`);
+      return data ? JSON.parse(data) : null;
+    } catch (e) {
+      console.error('Error reading user from localStorage:', e);
+      return null;
+    }
+  },
+  
+  setUser: (uuid, user) => {
+    try {
+      localStorage.setItem(`user-${uuid}`, JSON.stringify(user));
+    } catch (e) {
+      console.error('Error writing user to localStorage:', e);
+    }
+  },
+  
+  initializeUser: () => {
+    const existing = LocalStorageUtils.getUser(ONLINE_UUID);
+    if (!existing) {
+      LocalStorageUtils.setUser(ONLINE_UUID, { uuid: ONLINE_UUID, name: '', isNew: true });
+    }
+    return LocalStorageUtils.getUser(ONLINE_UUID);
+  },
+  
+  setUserName: (uuid, name) => {
+    const user = LocalStorageUtils.getUser(uuid);
+    if (user) {
+      user.name = name;
+      LocalStorageUtils.setUser(uuid, user);
+      return user;
+    }
+    return null;
+  },
+  
+  getWidgetPositions: (uuid) => {
+    try {
+      const data = localStorage.getItem(`widgets-${uuid}`);
+      return data ? JSON.parse(data) : [];
+    } catch (e) {
+      console.error('Error reading widget positions from localStorage:', e);
+      return [];
+    }
+  },
+  
+  saveWidgetPositions: (uuid, widgets) => {
+    try {
+      localStorage.setItem(`widgets-${uuid}`, JSON.stringify(widgets));
+    } catch (e) {
+      console.error('Error writing widget positions to localStorage:', e);
+    }
+  },
+  
+  deleteWidgetPosition: (uuid, instanceId) => {
+    const widgets = LocalStorageUtils.getWidgetPositions(uuid);
+    const filtered = widgets.filter(w => w.id !== instanceId);
+    LocalStorageUtils.saveWidgetPositions(uuid, filtered);
+  },
+};
 
 function getGreetingByTime(date = new Date()) {
   const hour = date.getHours();
@@ -177,13 +241,18 @@ function NameOnboarding({ uuid, handPositions, onComplete, onCancel }) {
     if (trimmed.length < 2) { setError('Please enter at least 2 letters.'); return; }
     setSaving(true);
     try {
-      const res = await fetch(`http://localhost:3000/api/users/${uuid}/name`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: trimmed }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      onComplete(trimmed);
+      if (ONLINE) {
+        LocalStorageUtils.setUserName(uuid, trimmed);
+        onComplete(trimmed);
+      } else {
+        const res = await fetch(`http://localhost:3000/api/users/${uuid}/name`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: trimmed }),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        onComplete(trimmed);
+      }
     } catch (e) {
       setError('Saving name failed. Please try again.');
     } finally {
@@ -267,10 +336,6 @@ function NameOnboarding({ uuid, handPositions, onComplete, onCancel }) {
               onClick={() => applyKey('BACKSPACE')}
               disabled={saving}
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20" style={{ marginRight: '6px' }}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 12H7m0 0l4-4m-4 4l4 4" />
-                <path strokeLinecap="round" d="M3 6l-.01 12" />
-              </svg>
               Del
             </button>
             <button
@@ -302,7 +367,7 @@ function NameOnboarding({ uuid, handPositions, onComplete, onCancel }) {
               onClick={handleSave}
               disabled={saving}
             >
-              {saving ? 'Saving…' : 'Done ↵'}
+              {saving ? 'Saving…' : 'Done'}
             </button>
           </div>
         </div>
@@ -316,6 +381,32 @@ function NameOnboarding({ uuid, handPositions, onComplete, onCancel }) {
 function LockScreen({ onUnlock, demoMode = false }) {
   const [phase, setPhase] = useState('idle');
   const [showModal, setShowModal] = useState(false);
+  const pollingRef = useRef(null);
+  const lastRFIDRef = useRef(null);
+
+  useEffect(() => {
+    if (!ONLINE) return;
+    
+    const pollNFC = async () => {
+      try {
+        const res = await fetch('http://localhost:3000/api/rfid/last');
+        if (!res.ok) return;
+        const data = await res.json();
+        
+        if (data.uid && data.uid !== lastRFIDRef.current && phase === 'idle') {
+          lastRFIDRef.current = data.uid;
+          triggerUnlock(ONLINE_UUID);
+        }
+      } catch (e) {
+        console.error('RFID polling error:', e);
+      }
+    };
+
+    pollingRef.current = setInterval(pollNFC, 500);
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
+  }, [phase]);
 
   const triggerUnlock = useCallback((uuid) => {
     if (phase !== 'idle') return;
@@ -328,8 +419,12 @@ function LockScreen({ onUnlock, demoMode = false }) {
   }, [phase, onUnlock]);
 
   const handleClick = useCallback(() => {
-    if (!demoMode) return;
-    setShowModal(true);
+    if (!demoMode && !ONLINE) return;
+    if (ONLINE) {
+      if (demoMode) triggerUnlock(ONLINE_UUID);
+    } else {
+      setShowModal(true);
+    }
   }, [demoMode]);
 
   return (
@@ -341,7 +436,7 @@ function LockScreen({ onUnlock, demoMode = false }) {
           className="lock-tap"
           onClick={handleClick}
           aria-label="Anmelden"
-          style={{ cursor: demoMode ? 'pointer' : 'default' }}
+          style={{ cursor: (demoMode && ONLINE) || (demoMode && !ONLINE) ? 'pointer' : 'default' }}
         >
           <span className="lock-ring lock-ring--a" />
           <span className="lock-ring lock-ring--b" />
@@ -365,11 +460,11 @@ function LockScreen({ onUnlock, demoMode = false }) {
         </button>
 
         <p className="lock-hint">
-          {phase === 'idle' ? 'NFC-Chip ans Gerät halten' : 'Zugang gewährt'}
+          {phase === 'idle' ? (ONLINE ? 'NFC-Chip ans Gerät halten' : 'NFC-Chip ans Gerät halten') : 'Zugang gewährt'}
         </p>
       </div>
 
-      {showModal && (
+      {showModal && !ONLINE && (
         <UUIDModal
           onConfirm={triggerUnlock}
           onCancel={() => setShowModal(false)}
@@ -575,6 +670,9 @@ export default function IndexPage() {
   }, [takeComplimentPhoto]);
 
   const loadWidgetPositions = useCallback(async (uuid) => {
+    if (ONLINE) {
+      return LocalStorageUtils.getWidgetPositions(uuid);
+    }
     try {
       const res = await fetch(`http://localhost:3000/api/widget-positions/${uuid}`);
       if (!res.ok) return [];
@@ -590,11 +688,15 @@ export default function IndexPage() {
     clearTimeout(saveTimeoutRef.current);
     saveTimeoutRef.current = setTimeout(async () => {
       try {
-        await fetch(`http://localhost:3000/api/widget-positions/${uuid}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ widgets }),
-        });
+        if (ONLINE) {
+          LocalStorageUtils.saveWidgetPositions(uuid, widgets);
+        } else {
+          await fetch(`http://localhost:3000/api/widget-positions/${uuid}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ widgets }),
+          });
+        }
       } catch (e) {
         console.error('Widget positions save error:', e);
       }
@@ -603,7 +705,11 @@ export default function IndexPage() {
 
   const deletePersistedWidget = useCallback(async (uuid, instanceId) => {
     try {
-      await fetch(`http://localhost:3000/api/widget-positions/${uuid}/${instanceId}`, { method: 'DELETE' });
+      if (ONLINE) {
+        LocalStorageUtils.deleteWidgetPosition(uuid, instanceId);
+      } else {
+        await fetch(`http://localhost:3000/api/widget-positions/${uuid}/${instanceId}`, { method: 'DELETE' });
+      }
     } catch (e) {
       console.error('Widget position delete error:', e);
     }
@@ -624,8 +730,18 @@ export default function IndexPage() {
   }, []);
 
   const handleUnlock = useCallback(async (authPayload) => {
-    const uuid = authPayload?.uuid || authPayload;
-    const user = authPayload?.user || null;
+    let uuid, user;
+    
+    if (ONLINE) {
+      // In ONLINE mode, always use the default online user
+      uuid = ONLINE_UUID;
+      user = LocalStorageUtils.initializeUser();
+    } else {
+      // In OFFLINE mode, use the passed UUID
+      uuid = authPayload?.uuid || authPayload;
+      user = authPayload?.user || null;
+    }
+    
     const positions = await loadWidgetPositions(uuid);
     setSavedWidgetPositions(positions);
     setCurrentUser(uuid);

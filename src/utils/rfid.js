@@ -21,7 +21,7 @@ port.open((err) => {
 });
 
 parser.on('data', (line) => {
-  const uid = line.trim();
+  const uid = line.trim().replace(/^Card UID:\s*/i, '');
   if (!uid) return;
 
   const timestamp = new Date().toISOString();
