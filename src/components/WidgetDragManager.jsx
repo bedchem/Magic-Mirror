@@ -7,7 +7,8 @@ const WIDGET_REGISTRY = Object.entries(WIDGET_MODULES).map(([path, mod]) => {
     return { id: name, label: name.replace(/Widget$/, ''), Component: mod.default };
 });
 
-const TRASH_HEIGHT = 110;
+const TRASH_HEIGHT        = 110;
+const PINCH_GRACE_MS      = 600; // ignore pinch-off shorter than this
 
 function TrashZone({ active, isOver }) {
     if (!active) return <div className="trash-zone" />;
@@ -29,14 +30,10 @@ function DraggableWidget({ instance, onMouseDragStart, isBeingDragged, handPosit
     const entry = WIDGET_REGISTRY.find(w => w.id === instance.widgetId);
     if (!entry) return null;
     const { Component, label } = entry;
-
     return (
         <div
             data-widget-instance={instance.id}
-            className={[
-                'draggable-widget',
-                isBeingDragged ? 'draggable-widget--dragging' : '',
-            ].filter(Boolean).join(' ')}
+            className={['draggable-widget', isBeingDragged ? 'draggable-widget--dragging' : ''].filter(Boolean).join(' ')}
             style={{ left: instance.x, top: instance.y }}
         >
             <div
@@ -44,6 +41,9 @@ function DraggableWidget({ instance, onMouseDragStart, isBeingDragged, handPosit
                 onMouseDown={e => onMouseDragStart(e, instance.id, instance.x, instance.y)}
             >
                 <span className="draggable-widget__title">{label}</span>
+                <div className="draggable-widget__dots">
+                    {[0,1,2].map(i => <div key={i} className="draggable-widget__dot" />)}
+                </div>
             </div>
             <div className="draggable-widget__content">
                 <Component
@@ -57,43 +57,44 @@ function DraggableWidget({ instance, onMouseDragStart, isBeingDragged, handPosit
 }
 
 function clampPos(x, y, instanceId) {
-    const el = document.querySelector(`[data-widget-instance="${instanceId}"]`);
-    const w = el?.offsetWidth ?? 300;
+    const el      = document.querySelector(`[data-widget-instance="${instanceId}"]`);
+    const w       = el?.offsetWidth ?? 300;
     const headerH = el?.querySelector('.draggable-widget__header')?.offsetHeight ?? 40;
-    const cx = Math.min(Math.max(x, 0), window.innerWidth - w);
-    const cy = Math.min(Math.max(y, 0), window.innerHeight - headerH);
-    return { x: cx, y: cy };
+    return {
+        x: Math.min(Math.max(x, 0), window.innerWidth  - w),
+        y: Math.min(Math.max(y, 0), window.innerHeight - headerH),
+    };
 }
 
 export default function WidgetDragManager({ handPositions = {}, spawnRef, initialWidgets = [], onWidgetsChange, onWidgetRemoved }) {
     const [activeWidgets, setActiveWidgets] = useState([]);
-    const [focusOrder, setFocusOrder] = useState([]);
-    const [dragging, setDragging] = useState(null);
-    const [trashOver, setTrashOver] = useState(false);
+    const [focusOrder,    setFocusOrder]    = useState([]);
+    const [dragging,      setDragging]      = useState(null);
+    const [trashOver,     setTrashOver]     = useState(false);
 
-    const nextId = useRef(1);
-    const mouseDragRef = useRef(null);
-    const handDragRef = useRef(null);
-    const wasPinching = useRef({});
-    const pinchFocused = useRef({});
-    const initializedRef = useRef(false);
-    const activeWidgetsRef = useRef([]);
+    const nextId             = useRef(1);
+    const mouseDragRef       = useRef(null);
+    const handDragRef        = useRef(null);
+    const activeWidgetsRef   = useRef([]);
     const onWidgetsChangeRef = useRef(onWidgetsChange);
     const onWidgetRemovedRef = useRef(onWidgetRemoved);
+    const initializedRef     = useRef(false);
+
+    // Per-hand state for grace-period logic
+    // effectivePinch: true while pinching OR within grace window
+    const effectivePinch = useRef({}); // handIndex → bool
+    const graceTimers    = useRef({}); // handIndex → timeoutId
+    const lastHy         = useRef({}); // handIndex → last known hy (for trash on release)
 
     useEffect(() => { onWidgetsChangeRef.current = onWidgetsChange; }, [onWidgetsChange]);
     useEffect(() => { onWidgetRemovedRef.current = onWidgetRemoved; }, [onWidgetRemoved]);
+    useEffect(() => { activeWidgetsRef.current = activeWidgets; }, [activeWidgets]);
 
     useEffect(() => {
-        activeWidgetsRef.current = activeWidgets;
-    }, [activeWidgets]);
-
-    useEffect(() => {
-        if (initializedRef.current) return;
-        if (!initialWidgets.length) return;
+        if (initializedRef.current || !initialWidgets.length) return;
         initializedRef.current = true;
         const restored = initialWidgets.map(w => {
-            const id = w.id || `w${nextId.current++}`;
+            const id  = w.id || `w${nextId.current++}`;
             const num = parseInt(id.replace('w', ''));
             if (!isNaN(num) && num >= nextId.current) nextId.current = num + 1;
             return { id, widgetId: w.widgetId, x: w.x, y: w.y };
@@ -106,6 +107,10 @@ export default function WidgetDragManager({ handPositions = {}, spawnRef, initia
         onWidgetsChangeRef.current?.(widgets);
     }, []);
 
+    useEffect(() => {
+        if (activeWidgets.length > 0 || initializedRef.current) notify(activeWidgets);
+    }, [activeWidgets, notify]);
+
     const bringToFront = useCallback((instanceId) => {
         setFocusOrder(prev => {
             if (prev[prev.length - 1] === instanceId) return prev;
@@ -117,22 +122,14 @@ export default function WidgetDragManager({ handPositions = {}, spawnRef, initia
         setActiveWidgets(prev => {
             if (prev.some(w => w.widgetId === widgetId)) return prev;
             const id = `w${nextId.current++}`;
-            const newWidget = {
-                id,
-                widgetId,
-                x: Math.max(0, (window.innerWidth - 320) / 2),
-                y: Math.max(0, (window.innerHeight - 400) / 2),
-            };
             setFocusOrder(order => [...order, id]);
-            return [...prev, newWidget];
+            return [...prev, {
+                id, widgetId,
+                x: Math.max(0, (window.innerWidth  - 320) / 2),
+                y: Math.max(0, (window.innerHeight - 400) / 2),
+            }];
         });
     }, []);
-
-    useEffect(() => {
-        if (activeWidgets.length > 0 || initializedRef.current) {
-            notify(activeWidgets);
-        }
-    }, [activeWidgets, notify]);
 
     useEffect(() => { if (spawnRef) spawnRef.current = spawnWidget; }, [spawnRef, spawnWidget]);
 
@@ -147,6 +144,7 @@ export default function WidgetDragManager({ handPositions = {}, spawnRef, initia
         setActiveWidgets(prev => prev.map(w => w.id === id ? { ...w, x: cx, y: cy } : w));
     }, []);
 
+    // ── Mouse drag ─────────────────────────────────────────────────────────────
     const handleMouseDragStart = useCallback((e, instanceId, instanceX, instanceY) => {
         e.preventDefault();
         bringToFront(instanceId);
@@ -162,34 +160,30 @@ export default function WidgetDragManager({ handPositions = {}, spawnRef, initia
         if (!dragging || dragging.source !== 'mouse') return;
         const ref = mouseDragRef.current;
         if (!ref) return;
-
         const onMove = (e) => {
             moveWidget(ref.instanceId, e.clientX - ref.offsetX, e.clientY - ref.offsetY);
             setTrashOver(e.clientY > window.innerHeight - TRASH_HEIGHT);
         };
-
         const onUp = (e) => {
-            if (e.clientY > window.innerHeight - TRASH_HEIGHT) {
-                removeWidget(ref.instanceId);
-            }
+            if (e.clientY > window.innerHeight - TRASH_HEIGHT) removeWidget(ref.instanceId);
             mouseDragRef.current = null;
             setDragging(null);
             setTrashOver(false);
         };
-
         document.addEventListener('mousemove', onMove);
-        document.addEventListener('mouseup', onUp);
+        document.addEventListener('mouseup',   onUp);
         return () => {
             document.removeEventListener('mousemove', onMove);
-            document.removeEventListener('mouseup', onUp);
+            document.removeEventListener('mouseup',   onUp);
         };
     }, [dragging, moveWidget, removeWidget]);
 
+    // ── Hover highlight ────────────────────────────────────────────────────────
     const prevHoverEls = useRef(new Set());
-    const updateHover = useCallback((hx, hy) => {
-        const els = document.elementsFromPoint(hx, hy);
-        const btn = els.find(el => el.tagName === 'BUTTON' || el.closest?.('button'));
-        const hEl = btn?.closest?.('button') ?? btn ?? null;
+    const updateHover  = useCallback((hx, hy) => {
+        const els  = document.elementsFromPoint(hx, hy);
+        const btn  = els.find(el => el.tagName === 'BUTTON' || el.closest?.('button'));
+        const hEl  = btn?.closest?.('button') ?? btn ?? null;
         const prev = prevHoverEls.current;
         const next = new Set(hEl ? [hEl] : []);
         for (const el of prev) { if (!next.has(el)) el.classList.remove('hand-hover'); }
@@ -197,30 +191,63 @@ export default function WidgetDragManager({ handPositions = {}, spawnRef, initia
         prevHoverEls.current = next;
     }, []);
 
+    // ── Hand tracking ──────────────────────────────────────────────────────────
     useEffect(() => {
         for (const pos of Object.values(handPositions)) {
             const { handIndex, detected, palmVisible, isPinching, x: hx, y: hy } = pos;
 
-            const releaseHand = () => {
+            // Track last known hy for trash detection on delayed release
+            if (detected && hy != null) lastHy.current[handIndex] = hy;
+
+            // True release: fires after grace period expires
+            const doRelease = (handIndex) => {
                 if (handDragRef.current?.handIndex === handIndex) {
+                    const { instanceId } = handDragRef.current;
+                    const finalHy = lastHy.current[handIndex] ?? 0;
+                    if (finalHy > window.innerHeight - TRASH_HEIGHT) removeWidget(instanceId);
                     handDragRef.current = null;
                     setDragging(null);
                     setTrashOver(false);
                 }
-                pinchFocused.current[handIndex] = false;
+                effectivePinch.current[handIndex] = false;
             };
 
+            // Start grace timer — real pinch-off or hand lost
+            const startGrace = (hi) => {
+                if (graceTimers.current[hi]) return; // already running
+                graceTimers.current[hi] = setTimeout(() => {
+                    delete graceTimers.current[hi];
+                    doRelease(hi);
+                }, PINCH_GRACE_MS);
+            };
+
+            // Cancel grace — pinch came back
+            const cancelGrace = (hi) => {
+                if (graceTimers.current[hi]) {
+                    clearTimeout(graceTimers.current[hi]);
+                    delete graceTimers.current[hi];
+                }
+            };
+
+            // Hand fully gone: start grace if was pinching, otherwise reset immediately
             if (!detected || palmVisible === false) {
-                releaseHand();
-                wasPinching.current[handIndex] = false;
+                if (effectivePinch.current[handIndex]) {
+                    startGrace(handIndex);
+                } else {
+                    cancelGrace(handIndex);
+                }
                 continue;
             }
 
             updateHover(hx, hy);
 
-            const wasPinch = wasPinching.current[handIndex];
-
             if (isPinching) {
+                // Pinch is back → cancel grace, stay/become effective
+                cancelGrace(handIndex);
+                const wasEffective = effectivePinch.current[handIndex];
+                effectivePinch.current[handIndex] = true;
+
+                // ── Continue active drag ──────────────────────────────────────
                 if (handDragRef.current?.handIndex === handIndex) {
                     const { instanceId, offsetX, offsetY } = handDragRef.current;
                     moveWidget(instanceId, hx - offsetX, hy - offsetY);
@@ -228,18 +255,19 @@ export default function WidgetDragManager({ handPositions = {}, spawnRef, initia
                     setDragging(prev =>
                         prev?.instanceId === instanceId ? prev : { instanceId, source: 'hand' }
                     );
-                    wasPinching.current[handIndex] = true;
                     continue;
                 }
 
-                if (!wasPinch) {
-                    pinchFocused.current[handIndex] = false;
+                // ── Leading edge (first frame of this pinch gesture) ──────────
+                if (!wasEffective) {
                     const els = document.elementsFromPoint(hx, hy);
 
+                    // Focus widget under hand
                     const widgetEl = els.find(el => el.closest?.('[data-widget-instance]'));
-                    const focusId = widgetEl?.closest('[data-widget-instance]')?.dataset?.widgetInstance;
+                    const focusId  = widgetEl?.closest('[data-widget-instance]')?.dataset?.widgetInstance;
                     if (focusId) bringToFront(focusId);
 
+                    // Drum / kalender — let widget handle
                     const isDrum = els.some(el =>
                         el.hasAttribute?.('data-drum-index') ||
                         el.closest?.('[data-drum-index]') ||
@@ -248,44 +276,43 @@ export default function WidgetDragManager({ handPositions = {}, spawnRef, initia
                         el.classList?.contains('kal-vp') ||
                         el.closest?.('.kal-vp')
                     );
-                    if (isDrum) { wasPinching.current[handIndex] = true; continue; }
+                    if (isDrum) continue;
 
-                    const btn = els.find(el => el.tagName === 'BUTTON' || el.closest?.('button'));
+                    // Button click
+                    const btn       = els.find(el => el.tagName === 'BUTTON' || el.closest?.('button'));
                     const btnTarget = btn?.closest?.('button') ?? btn;
-                    if (btnTarget) {
-                        btnTarget.click();
-                        wasPinching.current[handIndex] = true;
-                        continue;
-                    }
+                    if (btnTarget) { btnTarget.click(); continue; }
 
+                    // Header → start drag
                     const headerEl = els.find(el =>
                         el.classList?.contains('draggable-widget__header') ||
                         el.closest?.('.draggable-widget__header')
                     );
                     if (headerEl) {
                         const instEl = headerEl.closest('[data-widget-instance]');
-                        const iid = instEl?.dataset?.widgetInstance;
+                        const iid    = instEl?.dataset?.widgetInstance;
                         if (iid) {
                             const w = activeWidgetsRef.current.find(w => w.id === iid);
                             if (w) {
-                                handDragRef.current = {
-                                    instanceId: iid,
-                                    offsetX: hx - w.x,
-                                    offsetY: hy - w.y,
-                                    handIndex,
-                                };
+                                handDragRef.current = { instanceId: iid, offsetX: hx - w.x, offsetY: hy - w.y, handIndex };
                                 setDragging({ instanceId: iid, source: 'hand' });
                             }
                         }
                     }
                 }
-            } else {
-                releaseHand();
-            }
 
-            wasPinching.current[handIndex] = isPinching;
+            } else {
+                // Pinch off — start grace period
+                if (effectivePinch.current[handIndex]) {
+                    startGrace(handIndex);
+                }
+            }
         }
-    }, [handPositions, moveWidget, removeWidget, updateHover, bringToFront, notify]);
+    }, [handPositions, moveWidget, removeWidget, updateHover, bringToFront]);
+
+    useEffect(() => () => {
+        Object.values(graceTimers.current).forEach(clearTimeout);
+    }, []);
 
     const sortedWidgets = [...activeWidgets].sort((a, b) => {
         const ai = focusOrder.indexOf(a.id);

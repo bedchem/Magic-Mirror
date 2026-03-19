@@ -23,6 +23,7 @@ port.open((err) => {
 parser.on('data', (line) => {
   const trimmed = line.trim();
 
+  // NUR Zeilen mit "Card UID:" verarbeiten, alles andere ignorieren
   if (!trimmed.startsWith('Card UID:')) return;
 
   const uid = trimmed.replace(/^Card UID:\s*/i, '').trim();

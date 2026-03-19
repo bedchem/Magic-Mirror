@@ -1,7 +1,9 @@
+
 import { useState, useCallback, useRef, useEffect } from 'react';
 import HandTrackingService from '../components/HandTrackingService';
 import WidgetDragManager from '../components/WidgetDragManager';
 import notificationImage from '../assets/notification.png';
+import { useFacePresence } from '../hooks/useFacePresence';
 
 const DEBUG = true;
 const ONLINE = false;
@@ -47,63 +49,34 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 
 const LocalStorageUtils = {
   getUser: (uuid) => {
-    try {
-      const data = localStorage.getItem(`user-${uuid}`);
-      return data ? JSON.parse(data) : null;
-    } catch (e) {
-      console.error('Error reading user from localStorage:', e);
-      return null;
-    }
+    try { const data = localStorage.getItem(`user-${uuid}`); return data ? JSON.parse(data) : null; }
+    catch (e) { console.error('Error reading user from localStorage:', e); return null; }
   },
-  
   setUser: (uuid, user) => {
-    try {
-      localStorage.setItem(`user-${uuid}`, JSON.stringify(user));
-    } catch (e) {
-      console.error('Error writing user to localStorage:', e);
-    }
+    try { localStorage.setItem(`user-${uuid}`, JSON.stringify(user)); }
+    catch (e) { console.error('Error writing user to localStorage:', e); }
   },
-  
   initializeUser: () => {
     const existing = LocalStorageUtils.getUser(ONLINE_UUID);
-    if (!existing) {
-      LocalStorageUtils.setUser(ONLINE_UUID, { uuid: ONLINE_UUID, name: '', isNew: true });
-    }
+    if (!existing) LocalStorageUtils.setUser(ONLINE_UUID, { uuid: ONLINE_UUID, name: '', isNew: true });
     return LocalStorageUtils.getUser(ONLINE_UUID);
   },
-  
   setUserName: (uuid, name) => {
     const user = LocalStorageUtils.getUser(uuid);
-    if (user) {
-      user.name = name;
-      LocalStorageUtils.setUser(uuid, user);
-      return user;
-    }
+    if (user) { user.name = name; LocalStorageUtils.setUser(uuid, user); return user; }
     return null;
   },
-  
   getWidgetPositions: (uuid) => {
-    try {
-      const data = localStorage.getItem(`widgets-${uuid}`);
-      return data ? JSON.parse(data) : [];
-    } catch (e) {
-      console.error('Error reading widget positions from localStorage:', e);
-      return [];
-    }
+    try { const data = localStorage.getItem(`widgets-${uuid}`); return data ? JSON.parse(data) : []; }
+    catch (e) { console.error('Error reading widget positions from localStorage:', e); return []; }
   },
-  
   saveWidgetPositions: (uuid, widgets) => {
-    try {
-      localStorage.setItem(`widgets-${uuid}`, JSON.stringify(widgets));
-    } catch (e) {
-      console.error('Error writing widget positions to localStorage:', e);
-    }
+    try { localStorage.setItem(`widgets-${uuid}`, JSON.stringify(widgets)); }
+    catch (e) { console.error('Error writing widget positions to localStorage:', e); }
   },
-  
   deleteWidgetPosition: (uuid, instanceId) => {
     const widgets = LocalStorageUtils.getWidgetPositions(uuid);
-    const filtered = widgets.filter(w => w.id !== instanceId);
-    LocalStorageUtils.saveWidgetPositions(uuid, filtered);
+    LocalStorageUtils.saveWidgetPositions(uuid, widgets.filter(w => w.id !== instanceId));
   },
 };
 
@@ -125,10 +98,7 @@ const ONBOARDING_PINCH_DEBOUNCE_MS = 220;
 
 function LockClock() {
   const [time, setTime] = useState(new Date());
-  useEffect(() => {
-    const id = setInterval(() => setTime(new Date()), 1000);
-    return () => clearInterval(id);
-  }, []);
+  useEffect(() => { const id = setInterval(() => setTime(new Date()), 1000); return () => clearInterval(id); }, []);
   const hh = String(time.getHours()).padStart(2, '0');
   const mm = String(time.getMinutes()).padStart(2, '0');
   const date = time.toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: 'long' });
@@ -145,61 +115,33 @@ function UUIDModal({ onConfirm, onCancel }) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const inputRef = useRef(null);
-
   useEffect(() => { inputRef.current?.focus(); }, []);
 
   const handleSubmit = useCallback(async () => {
     const trimmed = value.trim();
-    if (!UUID_REGEX.test(trimmed)) {
-      setError('Ungültige UUID — Format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx');
-      return;
-    }
-    setError('');
-    setLoading(true);
+    if (!UUID_REGEX.test(trimmed)) { setError('Ungültige UUID — Format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'); return; }
+    setError(''); setLoading(true);
     try {
-      const res = await fetch('http://localhost:3000/api/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uuid: trimmed }),
-      });
+      const res = await fetch('http://localhost:3000/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ uuid: trimmed }) });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const user = await res.json();
       onConfirm({ uuid: trimmed, user });
-    } catch (e) {
-      setError('Fehler beim Speichern des Users');
-    } finally {
-      setLoading(false);
-    }
+    } catch (e) { setError('Fehler beim Speichern des Users'); }
+    finally { setLoading(false); }
   }, [value, onConfirm]);
 
-  const handleKey = useCallback((e) => {
-    if (e.key === 'Enter') handleSubmit();
-    if (e.key === 'Escape') onCancel();
-  }, [handleSubmit, onCancel]);
+  const handleKey = useCallback((e) => { if (e.key === 'Enter') handleSubmit(); if (e.key === 'Escape') onCancel(); }, [handleSubmit, onCancel]);
 
   return (
     <div className="uuid-modal-overlay">
       <div className="uuid-modal">
         <h2 className="uuid-modal__title">User-ID eingeben</h2>
         <p className="uuid-modal__subtitle">UUID des Nutzers</p>
-        <input
-          ref={inputRef}
-          className={`uuid-modal__input${error ? ' uuid-modal__input--error' : ''}`}
-          type="text"
-          placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-          value={value}
-          onChange={e => { setValue(e.target.value); setError(''); }}
-          onKeyDown={handleKey}
-          spellCheck={false}
-        />
+        <input ref={inputRef} className={`uuid-modal__input${error ? ' uuid-modal__input--error' : ''}`} type="text" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" value={value} onChange={e => { setValue(e.target.value); setError(''); }} onKeyDown={handleKey} spellCheck={false} />
         {error && <p className="uuid-modal__error">{error}</p>}
         <div className="uuid-modal__actions">
-          <button className="uuid-modal__btn uuid-modal__btn--cancel" onClick={onCancel} disabled={loading}>
-            Abbrechen
-          </button>
-          <button className="uuid-modal__btn uuid-modal__btn--confirm" onClick={handleSubmit} disabled={loading}>
-            {loading ? '…' : 'Anmelden'}
-          </button>
+          <button className="uuid-modal__btn uuid-modal__btn--cancel" onClick={onCancel} disabled={loading}>Abbrechen</button>
+          <button className="uuid-modal__btn uuid-modal__btn--confirm" onClick={handleSubmit} disabled={loading}>{loading ? '…' : 'Anmelden'}</button>
         </div>
       </div>
     </div>
@@ -214,23 +156,12 @@ function NameOnboarding({ uuid, handPositions, onComplete, onCancel }) {
   const wasPinching = useRef({});
   const lastPinchTsRef = useRef(0);
 
-  const addChar = useCallback((char) => {
-    setName(prev => {
-      if (prev.length >= 22) return prev;
-      return prev + char;
-    });
-  }, []);
+  const addChar = useCallback((char) => { setName(prev => prev.length >= 22 ? prev : prev + char); }, []);
 
   const applyKey = useCallback((key) => {
     setError('');
     if (key === 'BACKSPACE') { setName(prev => prev.slice(0, -1)); return; }
-    if (key === 'SPACE') {
-      setName(prev => {
-        if (!prev || prev.endsWith(' ') || prev.length >= 22) return prev;
-        return `${prev} `;
-      });
-      return;
-    }
+    if (key === 'SPACE') { setName(prev => (!prev || prev.endsWith(' ') || prev.length >= 22) ? prev : `${prev} `); return; }
     if (key === 'CLEAR') { setName(''); return; }
     if (key === 'DONE') return;
     addChar(key);
@@ -241,59 +172,34 @@ function NameOnboarding({ uuid, handPositions, onComplete, onCancel }) {
     if (trimmed.length < 2) { setError('Please enter at least 2 letters.'); return; }
     setSaving(true);
     try {
-      if (ONLINE) {
-        LocalStorageUtils.setUserName(uuid, trimmed);
-        onComplete(trimmed);
-      } else {
-        const res = await fetch(`http://localhost:3000/api/users/${uuid}/name`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: trimmed }),
-        });
+      if (ONLINE) { LocalStorageUtils.setUserName(uuid, trimmed); onComplete(trimmed); }
+      else {
+        const res = await fetch(`http://localhost:3000/api/users/${uuid}/name`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: trimmed }) });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         onComplete(trimmed);
       }
-    } catch (e) {
-      setError('Saving name failed. Please try again.');
-    } finally {
-      setSaving(false);
-    }
+    } catch (e) { setError('Saving name failed. Please try again.'); }
+    finally { setSaving(false); }
   }, [name, onComplete, uuid]);
 
   useEffect(() => {
     let newHoveredKey = null;
-
     for (const pos of Object.values(handPositions)) {
       const { handIndex = 0, detected, palmVisible, isPinching, x, y } = pos;
       const wasPinch = wasPinching.current[handIndex] || false;
-
-      if (!detected || palmVisible === false) {
-        wasPinching.current[handIndex] = false;
-        continue;
-      }
-
+      if (!detected || palmVisible === false) { wasPinching.current[handIndex] = false; continue; }
       const els = document.elementsFromPoint(x, y);
       const keyTarget = els.find(el => el?.dataset?.keyboardKey || el?.closest?.('[data-keyboard-key]'));
       const keyEl = keyTarget?.dataset?.keyboardKey ? keyTarget : keyTarget?.closest?.('[data-keyboard-key]');
       const key = keyEl?.dataset?.keyboardKey;
       if (key) newHoveredKey = key;
-
       if (isPinching && !wasPinch) {
         const now = Date.now();
-        if (now - lastPinchTsRef.current < ONBOARDING_PINCH_DEBOUNCE_MS) {
-          wasPinching.current[handIndex] = true;
-          continue;
-        }
-        if (key) {
-          lastPinchTsRef.current = now;
-          if (key === 'DONE') handleSave();
-          else applyKey(key);
-        }
+        if (now - lastPinchTsRef.current < ONBOARDING_PINCH_DEBOUNCE_MS) { wasPinching.current[handIndex] = true; continue; }
+        if (key) { lastPinchTsRef.current = now; if (key === 'DONE') handleSave(); else applyKey(key); }
       }
-
       wasPinching.current[handIndex] = !!isPinching;
     }
-
     setHoveredKey(newHoveredKey);
   }, [handPositions, applyKey, handleSave]);
 
@@ -302,76 +208,27 @@ function NameOnboarding({ uuid, handPositions, onComplete, onCancel }) {
       <div className="name-onboarding-card">
         <h2 className="name-onboarding-title">New account detected</h2>
         <p className="name-onboarding-subtitle">Type your name with pinches, then press DONE.</p>
-
         <div className="name-onboarding-input" aria-live="polite">
-          <span className={name ? '' : 'name-onboarding-input__placeholder'}>
-            {name || 'Your name'}
-          </span>
+          <span className={name ? '' : 'name-onboarding-input__placeholder'}>{name || 'Your name'}</span>
           <span className="name-onboarding-input__cursor" />
         </div>
-
         <div className="name-kb">
           {NAME_KEYBOARD_ROWS.map((row, rowIdx) => (
             <div key={`row-${rowIdx}`} className="name-kb-row">
               {row.map((key) => (
-                <button
-                  key={key}
-                  type="button"
-                  data-keyboard-key={key}
-                  className={`name-kb-key${hoveredKey === key ? ' name-kb-key--hand-hover' : ''}`}
-                  onClick={() => applyKey(key)}
-                  disabled={saving}
-                >
-                  {key}
-                </button>
+                <button key={key} type="button" data-keyboard-key={key} className={`name-kb-key${hoveredKey === key ? ' name-kb-key--hand-hover' : ''}`} onClick={() => applyKey(key)} disabled={saving}>{key}</button>
               ))}
             </div>
           ))}
-
           <div className="name-kb-row name-kb-row--actions">
-            <button
-              type="button"
-              data-keyboard-key="BACKSPACE"
-              className={`name-kb-key name-kb-key--wide${hoveredKey === 'BACKSPACE' ? ' name-kb-key--hand-hover' : ''}`}
-              onClick={() => applyKey('BACKSPACE')}
-              disabled={saving}
-            >
-              Del
-            </button>
-            <button
-              type="button"
-              data-keyboard-key="SPACE"
-              className={`name-kb-key name-kb-key--space${hoveredKey === 'SPACE' ? ' name-kb-key--hand-hover' : ''}`}
-              onClick={() => applyKey('SPACE')}
-              disabled={saving}
-            >
-              Space
-            </button>
-            <button
-              type="button"
-              data-keyboard-key="CLEAR"
-              className={`name-kb-key name-kb-key--wide${hoveredKey === 'CLEAR' ? ' name-kb-key--hand-hover' : ''}`}
-              onClick={() => applyKey('CLEAR')}
-              disabled={saving}
-            >
-              Clear
-            </button>
+            <button type="button" data-keyboard-key="BACKSPACE" className={`name-kb-key name-kb-key--wide${hoveredKey === 'BACKSPACE' ? ' name-kb-key--hand-hover' : ''}`} onClick={() => applyKey('BACKSPACE')} disabled={saving}>Del</button>
+            <button type="button" data-keyboard-key="SPACE" className={`name-kb-key name-kb-key--space${hoveredKey === 'SPACE' ? ' name-kb-key--hand-hover' : ''}`} onClick={() => applyKey('SPACE')} disabled={saving}>Space</button>
+            <button type="button" data-keyboard-key="CLEAR" className={`name-kb-key name-kb-key--wide${hoveredKey === 'CLEAR' ? ' name-kb-key--hand-hover' : ''}`} onClick={() => applyKey('CLEAR')} disabled={saving}>Clear</button>
           </div>
-
           <div className="name-kb-row name-kb-row--actions">
-
-            <button
-              type="button"
-              data-keyboard-key="DONE"
-              className={`name-kb-key name-kb-key--done${hoveredKey === 'DONE' ? ' name-kb-key--hand-hover' : ''}`}
-              onClick={handleSave}
-              disabled={saving}
-            >
-              {saving ? 'Saving…' : 'Done'}
-            </button>
+            <button type="button" data-keyboard-key="DONE" className={`name-kb-key name-kb-key--done${hoveredKey === 'DONE' ? ' name-kb-key--hand-hover' : ''}`} onClick={handleSave} disabled={saving}>{saving ? 'Saving…' : 'Done'}</button>
           </div>
         </div>
-
         {error && <p className="name-onboarding-error">{error}</p>}
       </div>
     </div>
@@ -386,62 +243,36 @@ function LockScreen({ onUnlock, demoMode = false }) {
 
   useEffect(() => {
     if (!ONLINE) return;
-    
     const pollNFC = async () => {
       try {
         const res = await fetch('http://localhost:3000/api/rfid/last');
         if (!res.ok) return;
         const data = await res.json();
-        
-        if (data.uid && data.uid !== lastRFIDRef.current && phase === 'idle') {
-          lastRFIDRef.current = data.uid;
-          triggerUnlock(ONLINE_UUID);
-        }
-      } catch (e) {
-        console.error('RFID polling error:', e);
-      }
+        if (data.uid && data.uid !== lastRFIDRef.current && phase === 'idle') { lastRFIDRef.current = data.uid; triggerUnlock(ONLINE_UUID); }
+      } catch (e) { console.error('RFID polling error:', e); }
     };
-
     pollingRef.current = setInterval(pollNFC, 500);
-    return () => {
-      if (pollingRef.current) clearInterval(pollingRef.current);
-    };
+    return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
   }, [phase]);
 
   const triggerUnlock = useCallback((uuid) => {
     if (phase !== 'idle') return;
-    setShowModal(false);
-    setPhase('confirm');
-    setTimeout(() => {
-      setPhase('out');
-      setTimeout(() => onUnlock(uuid), 350);
-    }, 950);
+    setShowModal(false); setPhase('confirm');
+    setTimeout(() => { setPhase('out'); setTimeout(() => onUnlock(uuid), 350); }, 950);
   }, [phase, onUnlock]);
 
   const handleClick = useCallback(() => {
     if (!demoMode && !ONLINE) return;
-    if (ONLINE) {
-      if (demoMode) triggerUnlock(ONLINE_UUID);
-    } else {
-      setShowModal(true);
-    }
-  }, [demoMode]);
+    if (ONLINE) { if (demoMode) triggerUnlock(ONLINE_UUID); }
+    else { setShowModal(true); }
+  }, [demoMode, triggerUnlock]);
 
   return (
     <div className={`lock-screen lock-screen--${phase}`}>
       <LockClock />
-
       <div className="lock-center">
-        <button
-          className="lock-tap"
-          onClick={handleClick}
-          aria-label="Anmelden"
-          style={{ cursor: (demoMode && ONLINE) || (demoMode && !ONLINE) ? 'pointer' : 'default' }}
-        >
-          <span className="lock-ring lock-ring--a" />
-          <span className="lock-ring lock-ring--b" />
-          <span className="lock-ring lock-ring--c" />
-
+        <button className="lock-tap" onClick={handleClick} aria-label="Anmelden" style={{ cursor: (demoMode && ONLINE) || (demoMode && !ONLINE) ? 'pointer' : 'default' }}>
+          <span className="lock-ring lock-ring--a" /><span className="lock-ring lock-ring--b" /><span className="lock-ring lock-ring--c" />
           <span className="lock-core">
             {phase === 'idle' ? (
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" width="30" height="30">
@@ -458,18 +289,9 @@ function LockScreen({ onUnlock, demoMode = false }) {
             )}
           </span>
         </button>
-
-        <p className="lock-hint">
-          {phase === 'idle' ? (ONLINE ? 'NFC-Chip ans Gerät halten' : 'NFC-Chip ans Gerät halten') : 'Zugang gewährt'}
-        </p>
+        <p className="lock-hint">{phase === 'idle' ? 'NFC-Chip ans Gerät halten' : 'Zugang gewährt'}</p>
       </div>
-
-      {showModal && !ONLINE && (
-        <UUIDModal
-          onConfirm={triggerUnlock}
-          onCancel={() => setShowModal(false)}
-        />
-      )}
+      {showModal && !ONLINE && <UUIDModal onConfirm={triggerUnlock} onCancel={() => setShowModal(false)} />}
     </div>
   );
 }
@@ -513,9 +335,7 @@ function HandNav({ handPositions, onSpawnWidget }) {
   return (
     <>
       <button ref={plusRef} onClick={() => setExpanded(v => !v)} className="hand-nav__toggle" data-expanded={expanded}>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="30" height="30">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-        </svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="30" height="30"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
       </button>
       <nav className="hand-nav__list">
         {NAV_ITEMS.map((item, i) => {
@@ -585,11 +405,7 @@ function HandStatusDot({ status, index }) {
 }
 
 function StatusBar({ statuses }) {
-  return (
-    <div className="status-bar">
-      {statuses.map((s, i) => <HandStatusDot key={i} status={s} index={i} />)}
-    </div>
-  );
+  return <div className="status-bar">{statuses.map((s, i) => <HandStatusDot key={i} status={s} index={i} />)}</div>;
 }
 
 function LogoutButton({ onLogout }) {
@@ -601,6 +417,8 @@ function LogoutButton({ onLogout }) {
     </button>
   );
 }
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function IndexPage() {
   const [loggedIn, setLoggedIn] = useState(false);
@@ -622,6 +440,18 @@ export default function IndexPage() {
   const activeWidgetsRef = useRef([]);
   const saveTimeoutRef = useRef(null);
   const welcomeTimeoutRef = useRef(null);
+
+  const handleLogoutRef = useRef(null);
+
+  const handleAutoLogout = useCallback(() => {
+    console.log('[App] Face Presence Logout triggered - calling handleLogout');
+    handleLogoutRef.current?.();
+  }, []);
+
+  const { registerLoginFace, clearLoginFace } = useFacePresence(videoRef, {
+    onFaceLeft: handleAutoLogout,
+    enabled: loggedIn,
+  });
 
   const showWelcomeMessage = useCallback((name) => {
     const safeName = (name || '').trim();
@@ -655,9 +485,7 @@ export default function IndexPage() {
 
   useEffect(() => {
     if (!complimentLoopStarted) return;
-    const scheduleNext = () => {
-      intervalRef.current = setTimeout(async () => { await takeComplimentPhoto(); scheduleNext(); }, getRandomInterval());
-    };
+    const scheduleNext = () => { intervalRef.current = setTimeout(async () => { await takeComplimentPhoto(); scheduleNext(); }, getRandomInterval()); };
     scheduleNext();
     return () => clearTimeout(intervalRef.current);
   }, [complimentLoopStarted, takeComplimentPhoto]);
@@ -670,101 +498,38 @@ export default function IndexPage() {
   }, [takeComplimentPhoto]);
 
   const loadWidgetPositions = useCallback(async (uuid) => {
-    if (ONLINE) {
-      return LocalStorageUtils.getWidgetPositions(uuid);
-    }
+    if (ONLINE) return LocalStorageUtils.getWidgetPositions(uuid);
     try {
       const res = await fetch(`http://localhost:3000/api/widget-positions/${uuid}`);
       if (!res.ok) return [];
       const rows = await res.json();
       return rows.map(r => ({ id: r.instance_id, widgetId: r.widget_id, x: r.x, y: r.y }));
-    } catch (e) {
-      console.error('Widget positions load error:', e);
-      return [];
-    }
+    } catch (e) { console.error('Widget positions load error:', e); return []; }
   }, []);
 
   const persistWidgetPositions = useCallback((uuid, widgets) => {
     clearTimeout(saveTimeoutRef.current);
     saveTimeoutRef.current = setTimeout(async () => {
       try {
-        if (ONLINE) {
-          LocalStorageUtils.saveWidgetPositions(uuid, widgets);
-        } else {
-          await fetch(`http://localhost:3000/api/widget-positions/${uuid}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ widgets }),
-          });
-        }
-      } catch (e) {
-        console.error('Widget positions save error:', e);
-      }
+        if (ONLINE) LocalStorageUtils.saveWidgetPositions(uuid, widgets);
+        else await fetch(`http://localhost:3000/api/widget-positions/${uuid}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ widgets }) });
+      } catch (e) { console.error('Widget positions save error:', e); }
     }, 800);
   }, []);
 
   const deletePersistedWidget = useCallback(async (uuid, instanceId) => {
     try {
-      if (ONLINE) {
-        LocalStorageUtils.deleteWidgetPosition(uuid, instanceId);
-      } else {
-        await fetch(`http://localhost:3000/api/widget-positions/${uuid}/${instanceId}`, { method: 'DELETE' });
-      }
-    } catch (e) {
-      console.error('Widget position delete error:', e);
-    }
+      if (ONLINE) LocalStorageUtils.deleteWidgetPosition(uuid, instanceId);
+      else await fetch(`http://localhost:3000/api/widget-positions/${uuid}/${instanceId}`, { method: 'DELETE' });
+    } catch (e) { console.error('Widget position delete error:', e); }
   }, []);
 
-  const handleWidgetsChange = useCallback((widgets) => {
-    activeWidgetsRef.current = widgets;
-    if (currentUser) persistWidgetPositions(currentUser, widgets);
-  }, [currentUser, persistWidgetPositions]);
-
-  const handleWidgetRemoved = useCallback((instanceId) => {
-    if (currentUser) deletePersistedWidget(currentUser, instanceId);
-  }, [currentUser, deletePersistedWidget]);
-
-  const handleTrackingVideoReady = useCallback((videoEl) => {
-    if (!videoEl) return;
-    videoRef.current = videoEl;
-  }, []);
-
-  const handleUnlock = useCallback(async (authPayload) => {
-    let uuid, user;
-    
-    if (ONLINE) {
-      // In ONLINE mode, always use the default online user
-      uuid = ONLINE_UUID;
-      user = LocalStorageUtils.initializeUser();
-    } else {
-      // In OFFLINE mode, use the passed UUID
-      uuid = authPayload?.uuid || authPayload;
-      user = authPayload?.user || null;
-    }
-    
-    const positions = await loadWidgetPositions(uuid);
-    setSavedWidgetPositions(positions);
-    setCurrentUser(uuid);
-    setLoggedIn(true);
-
-    const userName = typeof user?.name === 'string' ? user.name.trim() : '';
-    const isNewAccount = !!user?.isNew || !userName;
-    if (isNewAccount) {
-      setPendingNameSetup({ uuid });
-    } else {
-      showWelcomeMessage(userName);
-      startComplimentFlow();
-    }
-
-  }, [loadWidgetPositions, showWelcomeMessage, startComplimentFlow]);
-
-  const handleNameSetupDone = useCallback((name) => {
-    setPendingNameSetup(null);
-    showWelcomeMessage(name);
-    startComplimentFlow();
-  }, [showWelcomeMessage, startComplimentFlow]);
+  const handleWidgetsChange = useCallback((widgets) => { activeWidgetsRef.current = widgets; if (currentUser) persistWidgetPositions(currentUser, widgets); }, [currentUser, persistWidgetPositions]);
+  const handleWidgetRemoved = useCallback((instanceId) => { if (currentUser) deletePersistedWidget(currentUser, instanceId); }, [currentUser, deletePersistedWidget]);
+  const handleTrackingVideoReady = useCallback((videoEl) => { if (!videoEl) return; videoRef.current = videoEl; }, []);
 
   const handleLogout = useCallback(() => {
+    console.log('[App] handleLogout called - logging out user');
     clearTimeout(intervalRef.current);
     clearTimeout(saveTimeoutRef.current);
     clearTimeout(welcomeTimeoutRef.current);
@@ -777,19 +542,45 @@ export default function IndexPage() {
     setComplimentLoopStarted(false);
     complimentRequestedRef.current = false;
     activeWidgetsRef.current = [];
-  }, []);
+    clearLoginFace(); // ← Gesichts-Fingerabdruck löschen
+  }, [clearLoginFace]);
 
+  // Keep ref in sync so handleAutoLogout can call the latest handleLogout
+  useEffect(() => { handleLogoutRef.current = handleLogout; }, [handleLogout]);
+
+  const handleUnlock = useCallback(async (authPayload) => {
+    let uuid, user;
+    if (ONLINE) { uuid = ONLINE_UUID; user = LocalStorageUtils.initializeUser(); }
+    else { uuid = authPayload?.uuid || authPayload; user = authPayload?.user || null; }
+
+    const positions = await loadWidgetPositions(uuid);
+    setSavedWidgetPositions(positions);
+    setCurrentUser(uuid);
+    setLoggedIn(true);
+
+    // ── Gesicht nach dem Unlock-Effekt erfassen (1,2 s Puffer) ──────────────
+    setTimeout(() => {
+      registerLoginFace().then(ok => {
+        if (!ok) console.warn('[FacePresence] Kein Gesicht beim Login erkannt – Auto-Logout deaktiviert.');
+        else console.log('[FacePresence] Login-Gesicht gespeichert.');
+      });
+    }, 1200);
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const userName = typeof user?.name === 'string' ? user.name.trim() : '';
+    const isNewAccount = !!user?.isNew || !userName;
+    if (isNewAccount) { setPendingNameSetup({ uuid }); }
+    else { showWelcomeMessage(userName); startComplimentFlow(); }
+  }, [loadWidgetPositions, showWelcomeMessage, startComplimentFlow, registerLoginFace]);
+
+  const handleNameSetupDone = useCallback((name) => { setPendingNameSetup(null); showWelcomeMessage(name); startComplimentFlow(); }, [showWelcomeMessage, startComplimentFlow]);
   const handleSpawnWidget = useCallback((widgetId) => { spawnRef.current?.(widgetId); }, []);
 
   const handleHandPosition = useCallback((pos) => {
     const idx = pos.handIndex ?? 0;
     window.__updateHandCursor?.[idx]?.(pos);
     setHandPositions(prev => ({ ...prev, [idx]: pos }));
-    setStatuses(prev => {
-      const next = [...prev];
-      next[idx] = { detected: pos.detected, isPinching: pos.isPinching || false, palmVisible: pos.palmVisible ?? true };
-      return next;
-    });
+    setStatuses(prev => { const next = [...prev]; next[idx] = { detected: pos.detected, isPinching: pos.isPinching || false, palmVisible: pos.palmVisible ?? true }; return next; });
   }, []);
 
   return (
@@ -814,18 +605,9 @@ export default function IndexPage() {
           <LiveCursor handIndex={0} />
           <LiveCursor handIndex={1} />
           {pendingNameSetup && (
-            <NameOnboarding
-              uuid={pendingNameSetup.uuid}
-              handPositions={handPositions}
-              onComplete={handleNameSetupDone}
-              onCancel={handleLogout}
-            />
+            <NameOnboarding uuid={pendingNameSetup.uuid} handPositions={handPositions} onComplete={handleNameSetupDone} onCancel={handleLogout} />
           )}
-          {welcomeText && (
-            <div className="welcome-greeting" role="status" aria-live="polite">
-              {welcomeText}
-            </div>
-          )}
+          {welcomeText && <div className="welcome-greeting" role="status" aria-live="polite">{welcomeText}</div>}
           {compliment && (
             <div className="compliment-popup" role="status" aria-live="polite">
               <div className="card">
