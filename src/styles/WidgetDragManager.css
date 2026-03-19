@@ -79,6 +79,44 @@
     font-size: 13px;
 }
 
+/* Light Mode */
+.draggable-widget--light {
+    box-shadow:
+        0 4px 24px rgba(0, 0, 0, 0.1),
+        0 0 0 1px rgba(59, 130, 246, 0.15);
+}
+
+.draggable-widget--light.draggable-widget--dragging {
+    box-shadow:
+        0 24px 64px rgba(0, 0, 0, 0.15),
+        0 0 0 1.5px rgba(59, 130, 246, 0.6),
+        0 0 30px rgba(59, 130, 246, 0.15);
+}
+
+.draggable-widget--light .draggable-widget__header {
+    background: rgba(240, 245, 255, 0.97);
+    border-bottom-color: rgba(59, 130, 246, 0.12);
+}
+
+.draggable-widget--light .draggable-widget__header:hover,
+.draggable-widget--light .draggable-widget__header.hand-hover {
+    outline-color: rgba(59, 130, 246, 0.6);
+    background: rgba(59, 130, 246, 0.08);
+}
+
+.draggable-widget--light .draggable-widget__title {
+    color: rgba(59, 111, 180, 0.8);
+}
+
+.draggable-widget--light .draggable-widget__dot {
+    background: rgba(59, 130, 246, 0.25);
+}
+
+.draggable-widget--light .draggable-widget__content {
+    background: rgba(245, 250, 255, 0.95);
+    color: rgba(100, 100, 120, 0.5);
+}
+
 .trash-zone {
     position: fixed;
     bottom: 0;

@@ -100,9 +100,6 @@
   animation: dt-out 0.16s cubic-bezier(0.4, 0, 0.6, 1) forwards;
 }
 
-.dt-flip__in {
-  animation: dt-in 0.16s cubic-bezier(0.4, 0, 0.6, 1) forwards;
-}
 
 @keyframes dt-out {
   from {
@@ -126,4 +123,31 @@
     transform: translateY(0);
     opacity: 1;
   }
+}
+
+/* Light Mode */
+.draggable-widget--light .dt-day {
+  color: #333333;
+}
+
+.draggable-widget--light .dt-date {
+  color: rgba(51, 51, 51, 0.5);
+}
+
+.draggable-widget--light .dt-colon {
+  color: rgba(59, 130, 246, 0.45);
+}
+
+.draggable-widget--light .dt-colon--dim {
+  color: rgba(59, 130, 246, 0.18);
+}
+
+.draggable-widget--light .dt-flip__out,
+.draggable-widget--light .dt-flip__in {
+  color: #333333;
+}
+
+.draggable-widget--light .dt-flip--sm .dt-flip__out,
+.draggable-widget--light .dt-flip--sm .dt-flip__in {
+  color: rgba(51, 51, 51, 0.5);
 }

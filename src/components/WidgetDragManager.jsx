@@ -26,14 +26,14 @@ function TrashZone({ active, isOver }) {
     );
 }
 
-function DraggableWidget({ instance, onMouseDragStart, isBeingDragged, handPositions, isFocused, onFocusWidget }) {
+function DraggableWidget({ instance, onMouseDragStart, isBeingDragged, handPositions, isFocused, onFocusWidget, isDarkMode }) {
     const entry = WIDGET_REGISTRY.find(w => w.id === instance.widgetId);
     if (!entry) return null;
     const { Component, label } = entry;
     return (
         <div
             data-widget-instance={instance.id}
-            className={['draggable-widget', isBeingDragged ? 'draggable-widget--dragging' : ''].filter(Boolean).join(' ')}
+            className={['draggable-widget', isBeingDragged ? 'draggable-widget--dragging' : '', !isDarkMode ? 'draggable-widget--light' : ''].filter(Boolean).join(' ')}
             style={{ left: instance.x, top: instance.y }}
         >
             <div
@@ -50,6 +50,7 @@ function DraggableWidget({ instance, onMouseDragStart, isBeingDragged, handPosit
                     handPositions={isFocused ? handPositions : {}}
                     isFocused={isFocused}
                     onFocus={onFocusWidget}
+                    isDarkMode={isDarkMode}
                 />
             </div>
         </div>
@@ -66,7 +67,7 @@ function clampPos(x, y, instanceId) {
     };
 }
 
-export default function WidgetDragManager({ handPositions = {}, spawnRef, initialWidgets = [], onWidgetsChange, onWidgetRemoved, onDraggingChange }) {
+export default function WidgetDragManager({ handPositions = {}, spawnRef, initialWidgets = [], onWidgetsChange, onWidgetRemoved, onDraggingChange, isDarkMode = true }) {
     const [activeWidgets, setActiveWidgets] = useState([]);
     const [focusOrder,    setFocusOrder]    = useState([]);
     const [dragging,      setDragging]      = useState(null);
@@ -347,6 +348,7 @@ export default function WidgetDragManager({ handPositions = {}, spawnRef, initia
                     handPositions={handPositions}
                     isFocused={focusOrder[focusOrder.length - 1] === instance.id}
                     onFocusWidget={() => bringToFront(instance.id)}
+                    isDarkMode={isDarkMode}
                 />
             ))}
             <TrashZone active={dragging !== null} isOver={trashOver} />

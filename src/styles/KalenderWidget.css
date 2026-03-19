@@ -171,3 +171,43 @@
 .kal-empty {
   pointer-events: none;
 }
+
+/* Light Mode */
+.draggable-widget--light .kal-widget {
+  color: #333333;
+}
+
+.draggable-widget--light .kal-title {
+  color: #333333;
+}
+
+.draggable-widget--light .kal-nav {
+  background: rgba(200, 225, 255, 0.6);
+  color: rgba(59, 130, 246, 0.8);
+}
+
+.draggable-widget--light .kal-nav:hover,
+.draggable-widget--light .kal-nav.hand-hover {
+  background: rgba(150, 200, 255, 0.8);
+  color: #333333;
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.2);
+}
+
+.draggable-widget--light .kal-dow {
+  color: rgba(59, 130, 246, 0.5);
+}
+
+.draggable-widget--light .kal-day {
+  color: #333333;
+}
+
+.draggable-widget--light .kal-day:not(.kal-empty):hover {
+  background: rgba(59, 130, 246, 0.12);
+}
+
+.draggable-widget--light .kal-today {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(59, 130, 246, 0.25));
+  color: #333333;
+  border-color: rgba(59, 130, 246, 0.5);
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.15);
+}

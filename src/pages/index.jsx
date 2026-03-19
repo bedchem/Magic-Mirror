@@ -76,7 +76,7 @@ const pollNFC = async () => {
     const data = await res.json();
     if (data.uid && data.uid !== lastRFIDRef.current && phase === 'idle') {
       lastRFIDRef.current = data.uid;
-      triggerUnlock(ONLINE_UUID); // ← alt
+      triggerUnlock(ONLINE_UUID); 
     }
   } catch (e) {}
 };
@@ -224,32 +224,54 @@ function LockScreen({ onUnlock, demoMode = false }) {
   const [showModal, setShowModal] = useState(false);
   const pollingRef = useRef(null);
   const lastRFIDRef = useRef(null);
-  useEffect(() => {
-    if (!ONLINE) return;
-    const pollNFC = async () => {
-      try {
-        const res = await fetch('http://localhost:3000/api/rfid/last');
-        if (!res.ok) return;
-        const data = await res.json();
-        if (data.uid && data.uid !== lastRFIDRef.current && phase === 'idle') {
-          lastRFIDRef.current = data.uid;
-          const uuid = rfidUidToUuid(data.uid);
-          triggerUnlock(uuid);
-        }
-      } catch (e) {}
-    };
-    pollingRef.current = setInterval(pollNFC, 500);
-    return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
-  }, [phase]);
+
   const triggerUnlock = useCallback((uuid) => {
     if (phase !== 'idle') return;
     setShowModal(false); setPhase('confirm');
     setTimeout(() => { setPhase('out'); setTimeout(() => onUnlock(uuid), 350); }, 950);
   }, [phase, onUnlock]);
+
+  useEffect(() => {
+    const pollNFC = async () => {
+      try {
+        const res = await fetch('http://localhost:3000/api/rfid/last');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data.uid || data.uid === lastRFIDRef.current) return;
+        lastRFIDRef.current = data.uid;
+
+        const uuid = rfidUidToUuid(data.uid);
+
+        if (ONLINE) {
+          // Bestehender Pfad: direkt unlock
+          triggerUnlock(uuid);
+        } else {
+          // Neuer Pfad: User über API anlegen/laden, dann unlock
+          try {
+            const userRes = await fetch('http://localhost:3000/api/users', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ uuid }),
+            });
+            if (!userRes.ok) throw new Error(`HTTP ${userRes.status}`);
+            const user = await userRes.json();
+            triggerUnlock({ uuid, user });
+          } catch (e) {
+            console.error('RFID user fetch error:', e);
+          }
+        }
+      } catch (e) {}
+    };
+
+    pollingRef.current = setInterval(pollNFC, 500);
+    return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
+  }, [triggerUnlock]);  // <-- phase-Abhängigkeit kommt über triggerUnlock rein
+
   const handleClick = useCallback(() => {
     if (ONLINE) { triggerUnlock(ONLINE_UUID); }
     else { setShowModal(true); }
   }, [triggerUnlock]);
+
   return (
     <div className={`lock-screen lock-screen--${phase}`}>
       <LockClock />
@@ -399,6 +421,30 @@ function LogoutButton({ onLogout }) {
   );
 }
 
+function ThemeToggleButton({ isDarkMode, onToggle }) {
+  return (
+    <button className="theme-toggle-btn" onClick={onToggle} title={isDarkMode ? 'Light Mode' : 'Dark Mode'}>
+      {isDarkMode ? (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="30" height="30">
+          <circle cx="12" cy="12" r="5" />
+          <line x1="12" y1="1" x2="12" y2="3" />
+          <line x1="12" y1="21" x2="12" y2="23" />
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+          <line x1="1" y1="12" x2="3" y2="12" />
+          <line x1="21" y1="12" x2="23" y2="12" />
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+        </svg>
+      ) : (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="30" height="30">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+        </svg>
+      )}
+    </button>
+  );
+}
+
 export default function IndexPage() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
@@ -413,6 +459,7 @@ export default function IndexPage() {
   const [pendingNameSetup, setPendingNameSetup] = useState(null);
   const [welcomeText, setWelcomeText] = useState('');
   const [isDragging, setIsDragging] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(true);
 
   const videoRef = useRef(null);
   const complimentRequestedRef = useRef(false);
@@ -547,6 +594,7 @@ export default function IndexPage() {
         <>
           {DEBUG && <StatusBar statuses={statuses} />}
           {DEBUG && !isDragging && <LogoutButton onLogout={handleLogout} />}
+          {DEBUG && !isDragging && <ThemeToggleButton isDarkMode={isDarkMode} onToggle={() => setIsDarkMode(v => !v)} />}
           {!pendingNameSetup && <HandNav handPositions={handPositions} onSpawnWidget={handleSpawnWidget} />}
           <WidgetDragManager
             key={currentUser}
@@ -556,6 +604,7 @@ export default function IndexPage() {
             onWidgetsChange={handleWidgetsChange}
             onWidgetRemoved={handleWidgetRemoved}
             onDraggingChange={setIsDragging}
+            isDarkMode={isDarkMode}
           />
           <LiveCursor handIndex={0} />
           <LiveCursor handIndex={1} />
