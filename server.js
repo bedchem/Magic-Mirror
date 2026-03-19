@@ -19,6 +19,16 @@ await initDB();
 const app = express();
 const upload = multer({ limits: { fileSize: 10 * 1024 * 1024 } });
 
+// ✅ Middleware MUST be registered BEFORE routes
+app.use(cors({
+  origin: 'http://localhost:5173',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type']
+}));
+
+app.use(express.json());
+app.use(express.static('public'));
+
 const FALLBACK_COMPLIMENTS = [
   'You have a great presence.',
   'You look fantastic today.',
@@ -62,15 +72,6 @@ app.post('/api/rfid/authenticate', async (req, res) => {
     res.status(500).json({ error: 'RFID Authentifizierung fehlgeschlagen' });
   }
 });
-
-app.use(cors({
-  origin: 'http://localhost:5173',
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type']
-}));
-
-app.use(express.json());
-app.use(express.static('public'));
 
 function getFinnhubToken() {
   return (
