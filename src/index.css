@@ -224,7 +224,11 @@ body {
   width: 100%;
   max-width: 490px;
   min-height: 70px;
-  background: #262938;
+  background: rgba(16, 16, 24, 0.95);
+  border: 1px solid rgba(155, 92, 252, 0.14);
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(155, 92, 252, 0.08);
   border-radius: 20px;
   display: flex;
   align-items: center;
@@ -246,7 +250,8 @@ body {
   margin-left: 2px;
   border-radius: 10px;
   object-fit: cover;
-  background: #10121a;
+  background: rgba(20, 20, 30, 0.97);
+  border: 1px solid rgba(155, 92, 252, 0.18);
   flex: 0 0 auto;
 }
 
@@ -258,7 +263,7 @@ body {
 .compliment-popup .textBox {
   width: calc(100% - 70px);
   margin-left: 10px;
-  color: white;
+  color: rgba(255, 255, 255, 0.9);
   font-family: 'Poppins', sans-serif;
 }
 
@@ -271,12 +276,14 @@ body {
 
 .compliment-popup .span {
   font-size: 10px;
+  color: rgba(255, 255, 255, 0.87);
 }
 
 .compliment-popup .h1 {
   margin: 0;
   font-size: 16px;
   font-weight: bold;
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .compliment-popup .p {
@@ -284,6 +291,36 @@ body {
   font-size: 12px;
   font-weight: 300;
   line-height: 1.25;
+  color: rgb(255, 255, 255);
+}
+
+.compliment-popup--light .card {
+  background: rgba(245, 250, 255, 0.95);
+  border-color: rgba(59, 130, 246, 0.18);
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.14),
+    0 0 0 1px rgba(59, 130, 246, 0.1);
+}
+
+.compliment-popup--light .img {
+  background: rgba(240, 245, 255, 0.97);
+  border-color: rgba(59, 130, 246, 0.25);
+}
+
+.compliment-popup--light .textBox {
+  color: rgba(25, 40, 67, 0.92);
+}
+
+.compliment-popup--light .h1 {
+  color: rgba(43, 75, 126, 0.95);
+}
+
+.compliment-popup--light .span {
+  color: rgba(59, 111, 180, 0.8);
+}
+
+.compliment-popup--light .p {
+  color: rgba(58, 71, 97, 0.88);
 }
 
 @keyframes fadeInOut {

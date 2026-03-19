@@ -71,20 +71,12 @@ const NAME_KEYBOARD_ROWS = [
 ];
 const ONBOARDING_PINCH_DEBOUNCE_MS = 220;
 
-// ---------------------------------------------------------------------------
-// Global hand-position emitter — zero React re-renders per frame
-// ---------------------------------------------------------------------------
-
-// handPositionEmitter is a module-level singleton so HandNav / WidgetDragManager
-// can subscribe without being re-rendered by IndexPage.
 const handPositionEmitter = {
   _subscribers: new Set(),
   subscribe(fn) { this._subscribers.add(fn); return () => this._subscribers.delete(fn); },
   emit(pos) { for (const fn of this._subscribers) fn(pos); },
 };
 
-// Hook for components that need hand positions as a ref (no re-render).
-// Returns a ref whose .current is always { [handIndex]: latestPos }.
 export function useHandPositionsRef() {
   const ref = useRef({});
   useEffect(() => {
@@ -94,8 +86,6 @@ export function useHandPositionsRef() {
   }, []);
   return ref;
 }
-
-// ---------------------------------------------------------------------------
 
 function LockClock() {
   const [time, setTime] = useState(new Date());
@@ -179,7 +169,6 @@ function NameOnboarding({ uuid, onComplete, onCancel, isDarkMode = false }) {
     finally { setSaving(false); }
   }, [name, onComplete, uuid]);
 
-  // Subscribe directly to emitter — no handPositions prop needed, no re-render cascade
   useEffect(() => {
     return handPositionEmitter.subscribe((pos) => {
       const { handIndex = 0, detected, palmVisible, isPinching, x, y } = pos;
@@ -298,7 +287,6 @@ function LockScreen({ onUnlock }) {
   );
 }
 
-// HandNav subscribes directly to the emitter — no prop drilling, no re-renders from IndexPage
 function HandNav({ onSpawnWidget }) {
   const [expanded, setExpanded] = useState(false);
   const [hoveredIdx, setHoveredIdx] = useState(null);
@@ -425,7 +413,6 @@ function HandStatusDot({ status, index }) {
   );
 }
 
-// StatusBar only re-renders in DEBUG mode when statuses change
 function StatusBar({ statuses }) {
   return <div className="status-bar">{statuses.map((s, i) => <HandStatusDot key={i} status={s} index={i} />)}</div>;
 }
@@ -462,7 +449,6 @@ function ThemeToggleButton({ isDarkMode, onToggle }) {
 export default function IndexPage() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
-  // statuses only used in DEBUG mode — negligible cost
   const [statuses, setStatuses] = useState([
     { detected: false, isPinching: false, palmVisible: false },
     { detected: false, isPinching: false, palmVisible: false },
@@ -612,12 +598,9 @@ export default function IndexPage() {
 
   const handleSpawnWidget = useCallback((widgetId) => { spawnRef.current?.(widgetId); }, []);
 
-  // Central hand position handler — emits to all subscribers, no setState per frame
   const handleHandPosition = useCallback((pos) => {
-    // Always emit — LiveCursor, HandNav, WidgetDragManager all subscribe directly
     handPositionEmitter.emit(pos);
 
-    // DEBUG-only status update (only runs when DEBUG=true)
     if (DEBUG) {
       const idx = pos.handIndex ?? 0;
       setStatuses(prev => {
@@ -643,8 +626,8 @@ export default function IndexPage() {
       {loggedIn && (
         <>
           {DEBUG && <StatusBar statuses={statuses} />}
-          {DEBUG && !isDragging && <LogoutButton onLogout={handleLogout} />}
-          {DEBUG && !isDragging && <ThemeToggleButton isDarkMode={isDarkMode} onToggle={() => setIsDarkMode(v => !v)} />}
+          {!isDragging && <LogoutButton onLogout={handleLogout} />}
+          {!isDragging && <ThemeToggleButton isDarkMode={isDarkMode} onToggle={() => setIsDarkMode(v => !v)} />}
           {!pendingNameSetup && <HandNav onSpawnWidget={handleSpawnWidget} />}
           <WidgetDragManager
             key={currentUser}
@@ -669,7 +652,7 @@ export default function IndexPage() {
           )}
           {welcomeText && <div className="welcome-greeting" role="status" aria-live="polite">{welcomeText}</div>}
           {compliment && (
-            <div className="compliment-popup" role="status" aria-live="polite">
+            <div className={`compliment-popup${!isDarkMode ? ' compliment-popup--light' : ''}`} role="status" aria-live="polite">
               <div className="card">
                 <img className="img" src={notificationImage} alt="Notification" />
                 <div className="textBox">

@@ -26,8 +26,6 @@ function TrashZone({ active, isOver }) {
     );
 }
 
-// DraggableWidget never re-renders during drag — position is applied via DOM ref.
-// React state is only used for initial placement and post-drag commit.
 const DraggableWidget = memo(function DraggableWidget({ instance, onMouseDragStart, isBeingDragged, isFocused, onFocusWidget, isDarkMode, handPositions }) {
     const entry = WIDGET_REGISTRY.find(w => w.id === instance.widgetId);
     if (!entry) return null;
@@ -66,7 +64,6 @@ const DraggableWidget = memo(function DraggableWidget({ instance, onMouseDragSta
     return true;
 });
 
-// Write x/y directly to the widget's DOM element — zero React involvement during drag.
 function applyDragTransform(instanceId, x, y) {
     const el = document.querySelector(`[data-widget-instance="${instanceId}"]`);
     if (!el) return;
@@ -84,15 +81,12 @@ function clampPos(x, y, instanceId) {
     };
 }
 
-// Clamp + write directly to DOM — zero React state during drag.
 function clampAndApply(instanceId, rawX, rawY) {
     const { x, y } = clampPos(rawX, rawY, instanceId);
     applyDragTransform(instanceId, x, y);
     return { x, y };
 }
 
-// WidgetDragManager receives `emitter` and `paused` instead of handPositions.
-// This eliminates the per-frame re-render cascade from IndexPage.
 export default function WidgetDragManager({
     emitter,
     paused = false,
@@ -108,7 +102,6 @@ export default function WidgetDragManager({
     const [dragging, setDragging] = useState(null);
     const [trashOver, setTrashOver] = useState(false);
 
-    // For focused widget: keep a hand-positions state that only updates the focused widget
     const [focusedHandPositions, setFocusedHandPositions] = useState({});
 
     const onDraggingChangeRef = useRef(onDraggingChange);
@@ -128,7 +121,6 @@ export default function WidgetDragManager({
     const graceTimers = useRef({});
     const lastHy = useRef({});
 
-    // Hover tracking with RAF throttle to avoid forced layout per frame
     const prevHoverEls = useRef(new Set());
     const hoverRafRef = useRef(null);
 
@@ -197,8 +189,6 @@ export default function WidgetDragManager({
         });
     }, []);
 
-    // Commit final position to React state after drag ends.
-    // During drag, position is written directly to DOM — no setState called.
     const commitWidgetPos = useCallback((id, x, y) => {
         setActiveWidgets(prev => prev.map(w => w.id === id ? { ...w, x, y } : w));
     }, []);
@@ -219,7 +209,6 @@ export default function WidgetDragManager({
         const ref = mouseDragRef.current;
         if (!ref) return;
         const onMove = (e) => {
-            // DOM-direct — no setState
             clampAndApply(ref.instanceId, e.clientX - ref.offsetX, e.clientY - ref.offsetY);
             setTrashOver(e.clientY > window.innerHeight - TRASH_HEIGHT);
         };
@@ -227,7 +216,6 @@ export default function WidgetDragManager({
             if (e.clientY > window.innerHeight - TRASH_HEIGHT) {
                 removeWidget(ref.instanceId);
             } else {
-                // Commit final position to React state once
                 const { x, y } = clampPos(e.clientX - ref.offsetX, e.clientY - ref.offsetY, ref.instanceId);
                 commitWidgetPos(ref.instanceId, x, y);
             }
@@ -243,7 +231,6 @@ export default function WidgetDragManager({
         };
     }, [dragging, commitWidgetPos, removeWidget, setDraggingAndNotify]);
 
-    // Throttled hover update — only scheduled once per rAF, not once per emitter event
     const scheduleHoverUpdate = useCallback((hx, hy) => {
         if (hoverRafRef.current !== null) return;
         hoverRafRef.current = requestAnimationFrame(() => {
@@ -259,7 +246,6 @@ export default function WidgetDragManager({
         });
     }, []);
 
-    // Subscribe directly to emitter — no prop drilling, no IndexPage re-renders
     useEffect(() => {
         if (!emitter) return;
 
@@ -270,7 +256,6 @@ export default function WidgetDragManager({
 
             if (detected && hy != null) lastHy.current[handIndex] = hy;
 
-            // Always forward to focused widget (cheap state update, only one widget reads it)
             if (detected) {
                 const focusedId = focusOrderRef.current[focusOrderRef.current.length - 1];
                 if (focusedId) {
@@ -285,7 +270,6 @@ export default function WidgetDragManager({
                     if (finalHy > window.innerHeight - TRASH_HEIGHT) {
                         removeWidget(instanceId);
                     } else {
-                        // Read current DOM position and commit to state once
                         const el = document.querySelector(`[data-widget-instance="${instanceId}"]`);
                         if (el) {
                             const x = parseFloat(el.style.left) || 0;
@@ -323,7 +307,6 @@ export default function WidgetDragManager({
                 return;
             }
 
-            // Hover update throttled to one rAF per frame
             scheduleHoverUpdate(hx, hy);
 
             if (isPinching) {
@@ -331,7 +314,6 @@ export default function WidgetDragManager({
                 const wasEffective = effectivePinch.current[handIndex];
                 effectivePinch.current[handIndex] = true;
 
-                // Dragging: move widget directly via DOM — no React state touched
                 if (handDragRef.current?.handIndex === handIndex) {
                     const { instanceId, offsetX, offsetY } = handDragRef.current;
                     clampAndApply(instanceId, hx - offsetX, hy - offsetY);
@@ -342,7 +324,6 @@ export default function WidgetDragManager({
                     return;
                 }
 
-                // Pinch-start: only do hit-testing here, not on every frame
                 if (!wasEffective) {
                     const els = document.elementsFromPoint(hx, hy);
 

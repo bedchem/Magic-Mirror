@@ -37,6 +37,8 @@ const SIZE_RATIO_MIN = 0.65;
 const SIZE_RATIO_MAX = 1.45;
 const VEL_SMOOTH = 0.80;
 const FEAT_SMOOTH = 0.70;
+const VISION_WASM_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.32/wasm';
+const MODEL_ASSET_URL = `${import.meta.env.BASE_URL}mediapipe-model/hand_landmarker.task`;
 
 const l2 = (a, b) => {
   if (!a || !b || a.length !== b.length) return Infinity;
@@ -145,7 +147,6 @@ const HandTrackingService = ({
   const cameraFpsRef = useRef({ value: 0, lastNow: 0, lastFrames: null, callbackId: null, fallback: 0 });
   const frameLimiterRef = useRef({ lastSent: 0 });
   const slotsRef = useRef(makeEmptySlots());
-  // Track last known canvas dimensions to avoid resizing every frame
   const canvasDimsRef = useRef({ w: 0, h: 0 });
 
   const [previewPos, setPreviewPos] = useState({ x: 16, y: 16 });
@@ -175,9 +176,6 @@ const HandTrackingService = ({
     videoReadyRef.current = null;
   }, []);
 
-  // onResults is stored in a ref so the processFrame closure never becomes stale.
-  // This avoids recreating processFrame on every render while still reading
-  // the latest callback refs inside onResults.
   const onResultsRef = useRef(null);
   onResultsRef.current = useCallback((results, w, h, ctx) => {
     const allHands = results.landmarks || [];
@@ -466,7 +464,6 @@ const HandTrackingService = ({
         }
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -502,15 +499,13 @@ const HandTrackingService = ({
 
     const init = async () => {
       try {
-        const vision = await FilesetResolver.forVisionTasks(
-          '/node_modules/@mediapipe/tasks-vision/wasm'
-        );
+        const vision = await FilesetResolver.forVisionTasks(VISION_WASM_URL);
 
         const cfg = runtimeConfigRef.current;
 
         const handLandmarker = await HandLandmarker.createFromOptions(vision, {
           baseOptions: {
-            modelAssetPath: '/mediapipe-model/hand_landmarker.task',
+            modelAssetPath: MODEL_ASSET_URL,
             delegate: 'CPU',
           },
           runningMode: 'VIDEO',
@@ -603,8 +598,6 @@ const HandTrackingService = ({
 
           let ctx = null;
           if (canvas) {
-            // Only resize canvas when dimensions actually change — avoids clearing
-            // and invalidating the GPU texture every single frame
             if (canvasDimsRef.current.w !== w || canvasDimsRef.current.h !== h) {
               canvas.width = w;
               canvas.height = h;
@@ -621,7 +614,6 @@ const HandTrackingService = ({
 
           try {
             const nowMs = performance?.now?.() ?? Date.now();
-            // Always read the latest onResults via ref — never stale
             const result = handsRef.current.detectForVideo(src, nowMs);
             onResultsRef.current(result, w, h, ctx);
           } catch (e) {
