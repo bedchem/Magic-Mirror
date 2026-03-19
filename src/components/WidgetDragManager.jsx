@@ -66,10 +66,12 @@ function clampPos(x, y, instanceId) {
     };
 }
 
-export default function WidgetDragManager({ handPositions = {}, spawnRef, initialWidgets = [], onWidgetsChange, onWidgetRemoved }) {
+export default function WidgetDragManager({ handPositions = {}, spawnRef, initialWidgets = [], onWidgetsChange, onWidgetRemoved, onDraggingChange }) {
     const [activeWidgets, setActiveWidgets] = useState([]);
     const [focusOrder,    setFocusOrder]    = useState([]);
     const [dragging,      setDragging]      = useState(null);
+    const onDraggingChangeRef = useRef(onDraggingChange);
+    useEffect(() => { onDraggingChangeRef.current = onDraggingChange; }, [onDraggingChange]);
     const [trashOver,     setTrashOver]     = useState(false);
 
     const nextId             = useRef(1);
@@ -139,6 +141,17 @@ export default function WidgetDragManager({ handPositions = {}, spawnRef, initia
         onWidgetRemovedRef.current?.(id);
     }, []);
 
+    // Notify parent whenever dragging starts/stops
+    const setDraggingAndNotify = useCallback((val) => {
+        setDragging(prev => {
+            const next = typeof val === 'function' ? val(prev) : val;
+            const wasActive = prev !== null;
+            const isActive  = next !== null;
+            if (wasActive !== isActive) onDraggingChangeRef.current?.(isActive);
+            return next;
+        });
+    }, []);
+
     const moveWidget = useCallback((id, x, y) => {
         const { x: cx, y: cy } = clampPos(x, y, id);
         setActiveWidgets(prev => prev.map(w => w.id === id ? { ...w, x: cx, y: cy } : w));
@@ -153,7 +166,7 @@ export default function WidgetDragManager({ handPositions = {}, spawnRef, initia
             offsetX: e.clientX - instanceX,
             offsetY: e.clientY - instanceY,
         };
-        setDragging({ instanceId, source: 'mouse' });
+        setDraggingAndNotify({ instanceId, source: 'mouse' });
     }, [bringToFront]);
 
     useEffect(() => {
@@ -167,7 +180,7 @@ export default function WidgetDragManager({ handPositions = {}, spawnRef, initia
         const onUp = (e) => {
             if (e.clientY > window.innerHeight - TRASH_HEIGHT) removeWidget(ref.instanceId);
             mouseDragRef.current = null;
-            setDragging(null);
+            setDraggingAndNotify(null);
             setTrashOver(false);
         };
         document.addEventListener('mousemove', onMove);
@@ -206,7 +219,7 @@ export default function WidgetDragManager({ handPositions = {}, spawnRef, initia
                     const finalHy = lastHy.current[handIndex] ?? 0;
                     if (finalHy > window.innerHeight - TRASH_HEIGHT) removeWidget(instanceId);
                     handDragRef.current = null;
-                    setDragging(null);
+                    setDraggingAndNotify(null);
                     setTrashOver(false);
                 }
                 effectivePinch.current[handIndex] = false;
@@ -252,7 +265,7 @@ export default function WidgetDragManager({ handPositions = {}, spawnRef, initia
                     const { instanceId, offsetX, offsetY } = handDragRef.current;
                     moveWidget(instanceId, hx - offsetX, hy - offsetY);
                     setTrashOver(hy > window.innerHeight - TRASH_HEIGHT);
-                    setDragging(prev =>
+                    setDraggingAndNotify(prev =>
                         prev?.instanceId === instanceId ? prev : { instanceId, source: 'hand' }
                     );
                     continue;
@@ -295,7 +308,7 @@ export default function WidgetDragManager({ handPositions = {}, spawnRef, initia
                             const w = activeWidgetsRef.current.find(w => w.id === iid);
                             if (w) {
                                 handDragRef.current = { instanceId: iid, offsetX: hx - w.x, offsetY: hy - w.y, handIndex };
-                                setDragging({ instanceId: iid, source: 'hand' });
+                                setDraggingAndNotify({ instanceId: iid, source: 'hand' });
                             }
                         }
                     }

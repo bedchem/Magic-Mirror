@@ -1,9 +1,7 @@
-
 import { useState, useCallback, useRef, useEffect } from 'react';
 import HandTrackingService from '../components/HandTrackingService';
 import WidgetDragManager from '../components/WidgetDragManager';
 import notificationImage from '../assets/notification.png';
-import { useFacePresence } from '../hooks/useFacePresence';
 
 const DEBUG = true;
 const ONLINE = false;
@@ -47,37 +45,20 @@ function getRandomInterval() {
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+function rfidUidToUuid(uid) {
+  const hex = uid.replace(/\s+/g, '').toLowerCase();
+  const padded = hex.padEnd(32, '0');
+  return `${padded.slice(0,8)}-${padded.slice(8,12)}-${padded.slice(12,16)}-${padded.slice(16,20)}-${padded.slice(20,32)}`;
+}
+
 const LocalStorageUtils = {
-  getUser: (uuid) => {
-    try { const data = localStorage.getItem(`user-${uuid}`); return data ? JSON.parse(data) : null; }
-    catch (e) { console.error('Error reading user from localStorage:', e); return null; }
-  },
-  setUser: (uuid, user) => {
-    try { localStorage.setItem(`user-${uuid}`, JSON.stringify(user)); }
-    catch (e) { console.error('Error writing user to localStorage:', e); }
-  },
-  initializeUser: () => {
-    const existing = LocalStorageUtils.getUser(ONLINE_UUID);
-    if (!existing) LocalStorageUtils.setUser(ONLINE_UUID, { uuid: ONLINE_UUID, name: '', isNew: true });
-    return LocalStorageUtils.getUser(ONLINE_UUID);
-  },
-  setUserName: (uuid, name) => {
-    const user = LocalStorageUtils.getUser(uuid);
-    if (user) { user.name = name; LocalStorageUtils.setUser(uuid, user); return user; }
-    return null;
-  },
-  getWidgetPositions: (uuid) => {
-    try { const data = localStorage.getItem(`widgets-${uuid}`); return data ? JSON.parse(data) : []; }
-    catch (e) { console.error('Error reading widget positions from localStorage:', e); return []; }
-  },
-  saveWidgetPositions: (uuid, widgets) => {
-    try { localStorage.setItem(`widgets-${uuid}`, JSON.stringify(widgets)); }
-    catch (e) { console.error('Error writing widget positions to localStorage:', e); }
-  },
-  deleteWidgetPosition: (uuid, instanceId) => {
-    const widgets = LocalStorageUtils.getWidgetPositions(uuid);
-    LocalStorageUtils.saveWidgetPositions(uuid, widgets.filter(w => w.id !== instanceId));
-  },
+  getUser: (uuid) => { try { const data = localStorage.getItem(`user-${uuid}`); return data ? JSON.parse(data) : null; } catch (e) { return null; } },
+  setUser: (uuid, user) => { try { localStorage.setItem(`user-${uuid}`, JSON.stringify(user)); } catch (e) {} },
+  initializeUser: () => { const existing = LocalStorageUtils.getUser(ONLINE_UUID); if (!existing) LocalStorageUtils.setUser(ONLINE_UUID, { uuid: ONLINE_UUID, name: '', isNew: true }); return LocalStorageUtils.getUser(ONLINE_UUID); },
+  setUserName: (uuid, name) => { const user = LocalStorageUtils.getUser(uuid); if (user) { user.name = name; LocalStorageUtils.setUser(uuid, user); return user; } return null; },
+  getWidgetPositions: (uuid) => { try { const data = localStorage.getItem(`widgets-${uuid}`); return data ? JSON.parse(data) : []; } catch (e) { return []; } },
+  saveWidgetPositions: (uuid, widgets) => { try { localStorage.setItem(`widgets-${uuid}`, JSON.stringify(widgets)); } catch (e) {} },
+  deleteWidgetPosition: (uuid, instanceId) => { const widgets = LocalStorageUtils.getWidgetPositions(uuid); LocalStorageUtils.saveWidgetPositions(uuid, widgets.filter(w => w.id !== instanceId)); },
 };
 
 function getGreetingByTime(date = new Date()) {
@@ -88,12 +69,23 @@ function getGreetingByTime(date = new Date()) {
   return 'Gute Nacht';
 }
 
-const NAME_KEYBOARD_ROWS = [
-  ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
-  ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
-  ['Z', 'X', 'C', 'V', 'B', 'N', 'M'],
-];
+const pollNFC = async () => {
+  try {
+    const res = await fetch('http://localhost:3000/api/rfid/last');
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.uid && data.uid !== lastRFIDRef.current && phase === 'idle') {
+      lastRFIDRef.current = data.uid;
+      triggerUnlock(ONLINE_UUID); // ← alt
+    }
+  } catch (e) {}
+};
 
+const NAME_KEYBOARD_ROWS = [
+  ['Q','W','E','R','T','Y','U','I','O','P'],
+  ['A','S','D','F','G','H','J','K','L'],
+  ['Z','X','C','V','B','N','M'],
+];
 const ONBOARDING_PINCH_DEBOUNCE_MS = 220;
 
 function LockClock() {
@@ -116,7 +108,6 @@ function UUIDModal({ onConfirm, onCancel }) {
   const [loading, setLoading] = useState(false);
   const inputRef = useRef(null);
   useEffect(() => { inputRef.current?.focus(); }, []);
-
   const handleSubmit = useCallback(async () => {
     const trimmed = value.trim();
     if (!UUID_REGEX.test(trimmed)) { setError('Ungültige UUID — Format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'); return; }
@@ -129,9 +120,7 @@ function UUIDModal({ onConfirm, onCancel }) {
     } catch (e) { setError('Fehler beim Speichern des Users'); }
     finally { setLoading(false); }
   }, [value, onConfirm]);
-
   const handleKey = useCallback((e) => { if (e.key === 'Enter') handleSubmit(); if (e.key === 'Escape') onCancel(); }, [handleSubmit, onCancel]);
-
   return (
     <div className="uuid-modal-overlay">
       <div className="uuid-modal">
@@ -155,9 +144,7 @@ function NameOnboarding({ uuid, handPositions, onComplete, onCancel }) {
   const [hoveredKey, setHoveredKey] = useState(null);
   const wasPinching = useRef({});
   const lastPinchTsRef = useRef(0);
-
   const addChar = useCallback((char) => { setName(prev => prev.length >= 22 ? prev : prev + char); }, []);
-
   const applyKey = useCallback((key) => {
     setError('');
     if (key === 'BACKSPACE') { setName(prev => prev.slice(0, -1)); return; }
@@ -166,7 +153,6 @@ function NameOnboarding({ uuid, handPositions, onComplete, onCancel }) {
     if (key === 'DONE') return;
     addChar(key);
   }, [addChar]);
-
   const handleSave = useCallback(async () => {
     const trimmed = name.trim();
     if (trimmed.length < 2) { setError('Please enter at least 2 letters.'); return; }
@@ -181,7 +167,6 @@ function NameOnboarding({ uuid, handPositions, onComplete, onCancel }) {
     } catch (e) { setError('Saving name failed. Please try again.'); }
     finally { setSaving(false); }
   }, [name, onComplete, uuid]);
-
   useEffect(() => {
     let newHoveredKey = null;
     for (const pos of Object.values(handPositions)) {
@@ -202,9 +187,8 @@ function NameOnboarding({ uuid, handPositions, onComplete, onCancel }) {
     }
     setHoveredKey(newHoveredKey);
   }, [handPositions, applyKey, handleSave]);
-
   return (
-    <div className="name-onboarding-overlay" role="dialog" aria-modal="true" aria-label="Enter your name">
+    <div className="name-onboarding-overlay" role="dialog" aria-modal="true">
       <div className="name-onboarding-card">
         <h2 className="name-onboarding-title">New account detected</h2>
         <p className="name-onboarding-subtitle">Type your name with pinches, then press DONE.</p>
@@ -240,7 +224,6 @@ function LockScreen({ onUnlock, demoMode = false }) {
   const [showModal, setShowModal] = useState(false);
   const pollingRef = useRef(null);
   const lastRFIDRef = useRef(null);
-
   useEffect(() => {
     if (!ONLINE) return;
     const pollNFC = async () => {
@@ -248,30 +231,30 @@ function LockScreen({ onUnlock, demoMode = false }) {
         const res = await fetch('http://localhost:3000/api/rfid/last');
         if (!res.ok) return;
         const data = await res.json();
-        if (data.uid && data.uid !== lastRFIDRef.current && phase === 'idle') { lastRFIDRef.current = data.uid; triggerUnlock(ONLINE_UUID); }
-      } catch (e) { console.error('RFID polling error:', e); }
+        if (data.uid && data.uid !== lastRFIDRef.current && phase === 'idle') {
+          lastRFIDRef.current = data.uid;
+          const uuid = rfidUidToUuid(data.uid);
+          triggerUnlock(uuid);
+        }
+      } catch (e) {}
     };
     pollingRef.current = setInterval(pollNFC, 500);
     return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
   }, [phase]);
-
   const triggerUnlock = useCallback((uuid) => {
     if (phase !== 'idle') return;
     setShowModal(false); setPhase('confirm');
     setTimeout(() => { setPhase('out'); setTimeout(() => onUnlock(uuid), 350); }, 950);
   }, [phase, onUnlock]);
-
   const handleClick = useCallback(() => {
-    if (!demoMode && !ONLINE) return;
-    if (ONLINE) { if (demoMode) triggerUnlock(ONLINE_UUID); }
+    if (ONLINE) { triggerUnlock(ONLINE_UUID); }
     else { setShowModal(true); }
-  }, [demoMode, triggerUnlock]);
-
+  }, [triggerUnlock]);
   return (
     <div className={`lock-screen lock-screen--${phase}`}>
       <LockClock />
       <div className="lock-center">
-        <button className="lock-tap" onClick={handleClick} aria-label="Anmelden" style={{ cursor: (demoMode && ONLINE) || (demoMode && !ONLINE) ? 'pointer' : 'default' }}>
+        <button className="lock-tap" onClick={handleClick} aria-label="Anmelden">
           <span className="lock-ring lock-ring--a" /><span className="lock-ring lock-ring--b" /><span className="lock-ring lock-ring--c" />
           <span className="lock-core">
             {phase === 'idle' ? (
@@ -291,7 +274,7 @@ function LockScreen({ onUnlock, demoMode = false }) {
         </button>
         <p className="lock-hint">{phase === 'idle' ? 'NFC-Chip ans Gerät halten' : 'Zugang gewährt'}</p>
       </div>
-      {showModal && !ONLINE && <UUIDModal onConfirm={triggerUnlock} onCancel={() => setShowModal(false)} />}
+      {showModal && !ONLINE && <UUIDModal onConfirm={({ uuid, user }) => triggerUnlock({ uuid, user })} onCancel={() => setShowModal(false)} />}
     </div>
   );
 }
@@ -302,7 +285,6 @@ function HandNav({ handPositions, onSpawnWidget }) {
   const plusRef = useRef(null);
   const itemRefs = useRef([]);
   const wasPinching = useRef({});
-
   useEffect(() => {
     const positions = Object.values(handPositions);
     if (!positions.length) return;
@@ -331,7 +313,6 @@ function HandNav({ handPositions, onSpawnWidget }) {
     setExpanded(handOverMenu);
     if (!handOverMenu) setHoveredIdx(null);
   }, [handPositions, expanded, onSpawnWidget]);
-
   return (
     <>
       <button ref={plusRef} onClick={() => setExpanded(v => !v)} className="hand-nav__toggle" data-expanded={expanded}>
@@ -431,6 +412,8 @@ export default function IndexPage() {
   const [savedWidgetPositions, setSavedWidgetPositions] = useState([]);
   const [pendingNameSetup, setPendingNameSetup] = useState(null);
   const [welcomeText, setWelcomeText] = useState('');
+  const [isDragging, setIsDragging] = useState(false);
+
   const videoRef = useRef(null);
   const complimentRequestedRef = useRef(false);
   const intervalRef = useRef(null);
@@ -438,18 +421,6 @@ export default function IndexPage() {
   const activeWidgetsRef = useRef([]);
   const saveTimeoutRef = useRef(null);
   const welcomeTimeoutRef = useRef(null);
-
-  const handleLogoutRef = useRef(null);
-
-  const handleAutoLogout = useCallback(() => {
-    console.log('[App] Face Presence Logout triggered - calling handleLogout');
-    handleLogoutRef.current?.();
-  }, []);
-
-  const { registerLoginFace, clearLoginFace } = useFacePresence(videoRef, {
-    onFaceLeft: handleAutoLogout,
-    enabled: loggedIn,
-  });
 
   const showWelcomeMessage = useCallback((name) => {
     const safeName = (name || '').trim();
@@ -502,7 +473,7 @@ export default function IndexPage() {
       if (!res.ok) return [];
       const rows = await res.json();
       return rows.map(r => ({ id: r.instance_id, widgetId: r.widget_id, x: r.x, y: r.y }));
-    } catch (e) { console.error('Widget positions load error:', e); return []; }
+    } catch (e) { return []; }
   }, []);
 
   const persistWidgetPositions = useCallback((uuid, widgets) => {
@@ -511,7 +482,7 @@ export default function IndexPage() {
       try {
         if (ONLINE) LocalStorageUtils.saveWidgetPositions(uuid, widgets);
         else await fetch(`http://localhost:3000/api/widget-positions/${uuid}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ widgets }) });
-      } catch (e) { console.error('Widget positions save error:', e); }
+      } catch (e) {}
     }, 800);
   }, []);
 
@@ -519,7 +490,7 @@ export default function IndexPage() {
     try {
       if (ONLINE) LocalStorageUtils.deleteWidgetPosition(uuid, instanceId);
       else await fetch(`http://localhost:3000/api/widget-positions/${uuid}/${instanceId}`, { method: 'DELETE' });
-    } catch (e) { console.error('Widget position delete error:', e); }
+    } catch (e) {}
   }, []);
 
   const handleWidgetsChange = useCallback((widgets) => { activeWidgetsRef.current = widgets; if (currentUser) persistWidgetPositions(currentUser, widgets); }, [currentUser, persistWidgetPositions]);
@@ -527,7 +498,6 @@ export default function IndexPage() {
   const handleTrackingVideoReady = useCallback((videoEl) => { if (!videoEl) return; videoRef.current = videoEl; }, []);
 
   const handleLogout = useCallback(() => {
-    console.log('[App] handleLogout called - logging out user');
     clearTimeout(intervalRef.current);
     clearTimeout(saveTimeoutRef.current);
     clearTimeout(welcomeTimeoutRef.current);
@@ -536,37 +506,26 @@ export default function IndexPage() {
     setSavedWidgetPositions([]);
     setPendingNameSetup(null);
     setWelcomeText('');
+    setIsDragging(false);
     setCompliment('');
     setComplimentLoopStarted(false);
     complimentRequestedRef.current = false;
     activeWidgetsRef.current = [];
-    clearLoginFace();
-  }, [clearLoginFace]);
-
-  useEffect(() => { handleLogoutRef.current = handleLogout; }, [handleLogout]);
+  }, []);
 
   const handleUnlock = useCallback(async (authPayload) => {
     let uuid, user;
     if (ONLINE) { uuid = ONLINE_UUID; user = LocalStorageUtils.initializeUser(); }
     else { uuid = authPayload?.uuid || authPayload; user = authPayload?.user || null; }
-
     const positions = await loadWidgetPositions(uuid);
     setSavedWidgetPositions(positions);
     setCurrentUser(uuid);
     setLoggedIn(true);
-
-    setTimeout(() => {
-registerLoginFace().then(ok => {
-  if (!ok) console.warn('[FacePresence] No face detected during registration — auto-logout disabled.');
-  else console.log('[FacePresence] Login face stored.');
-});
-    }, 1200);
-
     const userName = typeof user?.name === 'string' ? user.name.trim() : '';
     const isNewAccount = !!user?.isNew || !userName;
     if (isNewAccount) { setPendingNameSetup({ uuid }); }
     else { showWelcomeMessage(userName); startComplimentFlow(); }
-  }, [loadWidgetPositions, showWelcomeMessage, startComplimentFlow, registerLoginFace]);
+  }, [loadWidgetPositions, showWelcomeMessage, startComplimentFlow]);
 
   const handleNameSetupDone = useCallback((name) => { setPendingNameSetup(null); showWelcomeMessage(name); startComplimentFlow(); }, [showWelcomeMessage, startComplimentFlow]);
   const handleSpawnWidget = useCallback((widgetId) => { spawnRef.current?.(widgetId); }, []);
@@ -587,7 +546,7 @@ registerLoginFace().then(ok => {
       {loggedIn && (
         <>
           {DEBUG && <StatusBar statuses={statuses} />}
-          {DEBUG && <LogoutButton onLogout={handleLogout} />}
+          {DEBUG && !isDragging && <LogoutButton onLogout={handleLogout} />}
           {!pendingNameSetup && <HandNav handPositions={handPositions} onSpawnWidget={handleSpawnWidget} />}
           <WidgetDragManager
             key={currentUser}
@@ -596,6 +555,7 @@ registerLoginFace().then(ok => {
             initialWidgets={savedWidgetPositions}
             onWidgetsChange={handleWidgetsChange}
             onWidgetRemoved={handleWidgetRemoved}
+            onDraggingChange={setIsDragging}
           />
           <LiveCursor handIndex={0} />
           <LiveCursor handIndex={1} />

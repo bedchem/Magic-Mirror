@@ -12,6 +12,7 @@
   "dependencies": {
     "@mediapipe/camera_utils": "^0.3.1675466862",
     "@mediapipe/drawing_utils": "^0.3.1675466124",
+    "@mediapipe/face_detection": "^0.4.1646425229",
     "@mediapipe/hands": "^0.4.1675469240",
     "@serialport/parser-readline": "^13.0.0",
     "cors": "^2.8.6",
