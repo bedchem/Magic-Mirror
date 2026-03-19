@@ -10,16 +10,13 @@ import { addSpotifyLink, getSpotifyLinks } from './src/utils/db.js';
 import sharp from 'sharp';
 import { upsertUser, getUser, saveWidgetPositions, getWidgetPositions, deleteWidgetPosition, setUserName } from './src/utils/db.js';
 
-import './src/utils/rfid.js';
-
 dotenv.config({ path: resolve(dirname(fileURLToPath(import.meta.url)), '.env') });
 
 await initDB();
-
+import './src/utils/rfid.js'
 const app = express();
 const upload = multer({ limits: { fileSize: 10 * 1024 * 1024 } });
 
-// ✅ Middleware MUST be registered BEFORE routes
 app.use(cors({
   origin: 'http://localhost:5173',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -50,28 +47,6 @@ app.get('/api/rfid/last', (req, res) => {
   });
 });
 
-// ✅ RFID Authentication Endpoint - handles RFID scan login
-app.post('/api/rfid/authenticate', async (req, res) => {
-  const { rfidUid } = req.body;
-  if (!rfidUid) return res.status(400).json({ error: 'RFID UID erforderlich' });
-  
-  try {
-    const user = await upsertUserByRFID(rfidUid);
-    
-    // Update globals for polling
-    const timestamp = new Date().toISOString();
-    global.lastRFIDUid = rfidUid;
-    global.lastRFIDUuid = user.uuid;
-    global.lastRFIDTime = timestamp;
-    global.lastRFIDUser = user;
-    
-    console.log(`[API] RFID Auth: UUID ${user.uuid} (${user.isNew ? 'neu' : 'bekannt'})`);
-    res.json({ uuid: user.uuid, user });
-  } catch (err) {
-    console.error('[API] RFID Auth Fehler:', err);
-    res.status(500).json({ error: 'RFID Authentifizierung fehlgeschlagen' });
-  }
-});
 
 function getFinnhubToken() {
   return (
