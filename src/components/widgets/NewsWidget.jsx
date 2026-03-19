@@ -5,10 +5,6 @@ const API_URL = "https://www.tagesschau.de/api2u/news";
 
 const SCROLL_INTENT_THRESHOLD = 22;
 
-// Gesture states per hand
-// null → "pending" → "scroll"
-// null → "pending" → (release) → click fires
-
 function timeAgo(dateStr) {
   const diff = Math.floor((Date.now() - new Date(dateStr)) / 60000);
   if (diff < 60) return `vor ${diff} Min.`;
@@ -92,8 +88,7 @@ export default function NewsWidget({ handPositions = {} }) {
 
   const listRef = useRef(null);
 
-  // Per-hand gesture state machine
-  // gestureStateRef[handIndex]: null | "pending" | "scroll"
+
   const gestureStateRef = useRef({});
   const prevYRef = useRef({});
   const pinchOriginYRef = useRef({});
@@ -146,10 +141,8 @@ export default function NewsWidget({ handPositions = {} }) {
       const ty = y ?? pinchMidY;
       const state = gestureStateRef.current[handIndex] ?? null;
 
-      // ── Hand lost / palm hidden / not pinching → reset ──────────────────
       if (!detected || palmVisible === false || !isPinching) {
         if (state === "pending") {
-          // Short pinch with no scroll movement → treat as click
           if (
             status === "success" &&
             !selected &&
@@ -178,10 +171,8 @@ export default function NewsWidget({ handPositions = {} }) {
         continue;
       }
 
-      // ── Coordinates not yet valid ────────────────────────────────────────
       if (!Number.isFinite(tx) || !Number.isFinite(ty)) continue;
 
-      // ── Pinch start → go pending ─────────────────────────────────────────
       if (state === null) {
         gestureStateRef.current[handIndex] = "pending";
         pinchOriginYRef.current[handIndex] = ty;
@@ -189,12 +180,10 @@ export default function NewsWidget({ handPositions = {} }) {
         continue;
       }
 
-      // ── Pending: check if travel crosses scroll threshold ────────────────
       if (state === "pending") {
         const travel = Math.abs(ty - (pinchOriginYRef.current[handIndex] ?? ty));
 
         if (travel >= SCROLL_INTENT_THRESHOLD) {
-          // Only commit to scroll if the hand is actually over the list
           const cx = Math.max(0, Math.min(window.innerWidth - 1, tx));
           const cy = Math.max(0, Math.min(window.innerHeight - 1, ty));
           const els = document.elementsFromPoint(cx, cy);
@@ -205,8 +194,6 @@ export default function NewsWidget({ handPositions = {} }) {
           if (overList) {
             gestureStateRef.current[handIndex] = "scroll";
           } else {
-            // Moved enough but not over list → don't scroll, reset origin
-            // so we re-evaluate on next frame without immediately re-committing
             pinchOriginYRef.current[handIndex] = ty;
           }
         }
@@ -215,7 +202,6 @@ export default function NewsWidget({ handPositions = {} }) {
         continue;
       }
 
-      // ── Scroll: drive scrollTop ──────────────────────────────────────────
       if (state === "scroll") {
         const py = prevYRef.current[handIndex];
         if (py != null && listRef.current) {

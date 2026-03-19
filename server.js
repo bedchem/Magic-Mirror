@@ -21,7 +21,7 @@ const app = express();
 const upload = multer({ limits: { fileSize: 10 * 1024 * 1024 } });
 
 app.use(cors({
-  origin: 'http://localhost:5173',
+  origin: ['http://localhost:5173', 'http://localhost:4173'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type']
 }));

@@ -69,6 +69,14 @@ const QUALITY_PRESETS = {
     cameraHeight: 720,
     modelComplexity: 0,
     maxFrameRate: null
+  },
+  pi: {
+    maxWidth: 320,
+    maxHeight: 240,
+    cameraWidth: 1280,
+    cameraHeight: 720,
+    modelComplexity: 0,
+    maxFrameRate: 30
   }
 };
 const getQualityPreset = (settings = {}) => {

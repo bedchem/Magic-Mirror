@@ -3,7 +3,7 @@ import HandTrackingService from '../components/HandTrackingService';
 import WidgetDragManager from '../components/WidgetDragManager';
 import notificationImage from '../assets/notification.png';
 
-const DEBUG = true;
+const DEBUG = false;
 const ONLINE = false;
 const ONLINE_UUID = 'online-user-default';
 const pi = true;
@@ -15,7 +15,7 @@ const defaultSettings = {
   cameraPosition: 'top',
   smoothing: 0.2,
   sensitivity: 1,
-  preprocessingQuality: 'max',
+  preprocessingQuality: pi ? 'pi' : 'max',
   minDetectionConfidence: 0.5,
   minTrackingConfidence: 0.5,
   pinchSensitivity: 0.2,
@@ -536,25 +536,25 @@ export default function IndexPage() {
   const handleWidgetRemoved = useCallback((instanceId) => { if (currentUser) deletePersistedWidget(currentUser, instanceId); }, [currentUser, deletePersistedWidget]);
   const handleTrackingVideoReady = useCallback((videoEl) => { if (!videoEl) return; videoRef.current = videoEl; }, []);
 
-const handleLogout = useCallback(async () => {
-  try {
-    await fetch('http://localhost:3000/api/rfid/clear', { method: 'POST' });
-  } catch (e) {}
+  const handleLogout = useCallback(async () => {
+    try {
+      await fetch('http://localhost:3000/api/rfid/clear', { method: 'POST' });
+    } catch (e) { }
 
-  clearTimeout(intervalRef.current);
-  clearTimeout(saveTimeoutRef.current);
-  clearTimeout(welcomeTimeoutRef.current);
-  setLoggedIn(false);
-  setCurrentUser(null);
-  setSavedWidgetPositions([]);
-  setPendingNameSetup(null);
-  setWelcomeText('');
-  setIsDragging(false);
-  setCompliment('');
-  setComplimentLoopStarted(false);
-  complimentRequestedRef.current = false;
-  activeWidgetsRef.current = [];
-}, []);
+    clearTimeout(intervalRef.current);
+    clearTimeout(saveTimeoutRef.current);
+    clearTimeout(welcomeTimeoutRef.current);
+    setLoggedIn(false);
+    setCurrentUser(null);
+    setSavedWidgetPositions([]);
+    setPendingNameSetup(null);
+    setWelcomeText('');
+    setIsDragging(false);
+    setCompliment('');
+    setComplimentLoopStarted(false);
+    complimentRequestedRef.current = false;
+    activeWidgetsRef.current = [];
+  }, []);
 
   const handleUnlock = useCallback(async (authPayload) => {
     let uuid, user;
@@ -576,8 +576,10 @@ const handleLogout = useCallback(async () => {
   const handleHandPosition = useCallback((pos) => {
     const idx = pos.handIndex ?? 0;
     window.__updateHandCursor?.[idx]?.(pos);
+    if (DEBUG) {
+      setStatuses(prev => { const next = [...prev]; next[idx] = { detected: pos.detected, isPinching: pos.isPinching || false, palmVisible: pos.palmVisible ?? true }; return next; });
+    }
     setHandPositions(prev => ({ ...prev, [idx]: pos }));
-    setStatuses(prev => { const next = [...prev]; next[idx] = { detected: pos.detected, isPinching: pos.isPinching || false, palmVisible: pos.palmVisible ?? true }; return next; });
   }, []);
 
   return (

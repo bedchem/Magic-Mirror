@@ -168,10 +168,10 @@ const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings
 
   const onResults = useCallback((results, w, h, ctx) => {
     const allHands = results.landmarks || [];
-const allLabels = (results.handedness || []).map(h => {
-  const raw = h[0]?.categoryName || 'Left';
-  return { label: raw === 'Left' ? 'Right' : 'Left' };
-});
+    const allLabels = (results.handedness || []).map(h => {
+      const raw = h[0]?.categoryName || 'Left';
+      return { label: raw === 'Left' ? 'Right' : 'Left' };
+    });
     const s = settingsRef.current || {};
 
     const nowTs = performance?.now?.() ?? Date.now();
@@ -488,16 +488,15 @@ const allLabels = (results.handedness || []).map(h => {
     const init = async () => {
       try {
         const vision = await FilesetResolver.forVisionTasks(
-          'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm'
+          '/node_modules/@mediapipe/tasks-vision/wasm'
         );
 
         const cfg = runtimeConfigRef.current;
 
         const handLandmarker = await HandLandmarker.createFromOptions(vision, {
           baseOptions: {
-            modelAssetPath:
-              'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
-            delegate: 'CPU', // No WebGL — runs on Pi 4/5
+            modelAssetPath: '/mediapipe-model/hand_landmarker.task',
+            delegate: 'CPU',
           },
           runningMode: 'VIDEO',
           numHands: 1,

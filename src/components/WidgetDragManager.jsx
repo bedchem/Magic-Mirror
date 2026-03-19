@@ -218,7 +218,6 @@ export default function WidgetDragManager({ handPositions = {}, spawnRef, initia
 
             const startGrace = (hi) => {
                 if (graceTimers.current[hi]) return;
-                // Over trash zone → release immediately, no grace
                 const hyNow = lastHy.current[hi] ?? 0;
                 if (hyNow > window.innerHeight - TRASH_HEIGHT) {
                     doRelease(hi);

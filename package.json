@@ -7,7 +7,9 @@
     "dev": "concurrently \"vite\" \"nodemon server.js\"",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "prestart": "vite build",
+    "start": "concurrently \"vite preview\" \"node server.js\""
   },
   "dependencies": {
     "@mediapipe/camera_utils": "^0.3.1675466862",
