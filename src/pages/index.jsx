@@ -536,21 +536,25 @@ export default function IndexPage() {
   const handleWidgetRemoved = useCallback((instanceId) => { if (currentUser) deletePersistedWidget(currentUser, instanceId); }, [currentUser, deletePersistedWidget]);
   const handleTrackingVideoReady = useCallback((videoEl) => { if (!videoEl) return; videoRef.current = videoEl; }, []);
 
-  const handleLogout = useCallback(() => {
-    clearTimeout(intervalRef.current);
-    clearTimeout(saveTimeoutRef.current);
-    clearTimeout(welcomeTimeoutRef.current);
-    setLoggedIn(false);
-    setCurrentUser(null);
-    setSavedWidgetPositions([]);
-    setPendingNameSetup(null);
-    setWelcomeText('');
-    setIsDragging(false);
-    setCompliment('');
-    setComplimentLoopStarted(false);
-    complimentRequestedRef.current = false;
-    activeWidgetsRef.current = [];
-  }, []);
+const handleLogout = useCallback(async () => {
+  try {
+    await fetch('http://localhost:3000/api/rfid/clear', { method: 'POST' });
+  } catch (e) {}
+
+  clearTimeout(intervalRef.current);
+  clearTimeout(saveTimeoutRef.current);
+  clearTimeout(welcomeTimeoutRef.current);
+  setLoggedIn(false);
+  setCurrentUser(null);
+  setSavedWidgetPositions([]);
+  setPendingNameSetup(null);
+  setWelcomeText('');
+  setIsDragging(false);
+  setCompliment('');
+  setComplimentLoopStarted(false);
+  complimentRequestedRef.current = false;
+  activeWidgetsRef.current = [];
+}, []);
 
   const handleUnlock = useCallback(async (authPayload) => {
     let uuid, user;

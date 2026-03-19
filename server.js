@@ -48,6 +48,13 @@ app.get('/api/rfid/last', (req, res) => {
   });
 });
 
+app.post('/api/rfid/clear', (req, res) => {
+  global.lastRFIDUid = null;
+  global.lastRFIDUuid = null;
+  global.lastRFIDUser = null;
+  global.lastRFIDTime = null;
+  res.json({ success: true });
+});
 
 function getFinnhubToken() {
   return (
@@ -241,7 +248,7 @@ app.post('/api/compliment', upload.single('image'), async (req, res) => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'qwen3-vl:2b-instruct',
+          model: '-',
           stream: false,
           messages: [
             {
