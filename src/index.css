@@ -690,7 +690,6 @@ body {
   }
 }
 
-/* Light Mode Onboarding */
 .name-onboarding-overlay--light {
   background: rgba(0, 0, 0, 0.3);
 }
@@ -1033,6 +1032,7 @@ body {
   color: #93c5fd;
   border-color: rgba(59, 130, 246, 0.3);
 }
+
 .welcome-greeting {
   position: fixed;
   bottom: 52px;
@@ -1040,8 +1040,8 @@ body {
   transform: translateX(-50%);
   z-index: 9000;
   pointer-events: none;
- 
-  
+
+
   display: inline-flex;
   align-items: center;
   gap: 12px;
@@ -1055,34 +1055,36 @@ body {
     0 0 0 1px rgba(155, 92, 252, 0.08),
     0 8px 40px rgba(0, 0, 0, 0.55),
     0 0 60px rgba(155, 92, 252, 0.12);
- 
+
   font-family: 'Outfit', sans-serif;
   font-size: clamp(20px, 2.4vw, 30px);
   font-weight: 300;
   letter-spacing: 0.01em;
   color: rgba(255, 255, 255, 0.92);
   white-space: nowrap;
- 
+
   animation: wg-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both,
-             wg-out 0.5s ease-in 3.7s both;
+    wg-out 0.5s ease-in 3.7s both;
 }
-  
+
 @keyframes wg-in {
   from {
     opacity: 0;
     transform: translateX(-50%) translateY(16px) scale(0.95);
   }
+
   to {
     opacity: 1;
     transform: translateX(-50%) translateY(0) scale(1);
   }
 }
- 
+
 @keyframes wg-out {
   from {
     opacity: 1;
     transform: translateX(-50%) translateY(0) scale(1);
   }
+
   to {
     opacity: 0;
     transform: translateX(-50%) translateY(8px) scale(0.97);

@@ -17,23 +17,22 @@ const EraserIcon = () => (
 );
 
 export default function ZeichnenWidget({ handPositions = {} }) {
-  const canvasRef    = useRef(null);
-  const sliderRef    = useRef(null);
-  const ctxRef       = useRef(null);
-  const lastPosRef   = useRef(null);
+  const canvasRef = useRef(null);
+  const sliderRef = useRef(null);
+  const ctxRef = useRef(null);
+  const lastPosRef = useRef(null);
   const sliderHandRef = useRef(null);
 
-  // Grace-period state per hand
-  const effectivePinch = useRef({}); // handIndex → bool
-  const graceTimers    = useRef({}); // handIndex → timeoutId
+  const effectivePinch = useRef({});
+  const graceTimers = useRef({});
 
-  const [mode, setMode]           = useState('draw');
+  const [mode, setMode] = useState('draw');
   const [lineWidth, setLineWidth] = useState(4);
   const [drawColor, setDrawColor] = useState('#ffffff');
 
   const MIN_LINE_WIDTH = 1;
   const MAX_LINE_WIDTH = 20;
-  const COLORS = ['#ffffff','#ff5f56','#ffd166','#06d6a0','#4cc9f0','#7b61ff','#ff66c4','#1f2937'];
+  const COLORS = ['#ffffff', '#ff5f56', '#ffd166', '#06d6a0', '#4cc9f0', '#7b61ff', '#ff66c4', '#1f2937'];
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -41,10 +40,10 @@ export default function ZeichnenWidget({ handPositions = {} }) {
     const ctx = canvas.getContext('2d');
     ctxRef.current = ctx;
     ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth   = lineWidth;
-    ctx.lineCap     = 'round';
-    ctx.lineJoin    = 'round';
-    ctx.fillStyle   = '#1a1a2e';
+    ctx.lineWidth = lineWidth;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.fillStyle = '#1a1a2e';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }, []);
 
@@ -54,7 +53,7 @@ export default function ZeichnenWidget({ handPositions = {} }) {
 
   const clearCanvas = useCallback(() => {
     const canvas = canvasRef.current;
-    const ctx    = ctxRef.current;
+    const ctx = ctxRef.current;
     if (!canvas || !ctx) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = '#1a1a2e';
@@ -67,17 +66,17 @@ export default function ZeichnenWidget({ handPositions = {} }) {
     const rect = canvas.getBoundingClientRect();
     if (screenX < rect.left || screenX > rect.right || screenY < rect.top || screenY > rect.bottom) return null;
     return {
-      x: (screenX - rect.left) * (canvas.width  / rect.width),
-      y: (screenY - rect.top)  * (canvas.height / rect.height),
+      x: (screenX - rect.left) * (canvas.width / rect.width),
+      y: (screenY - rect.top) * (canvas.height / rect.height),
     };
   }, []);
 
   const getSliderValueFromScreen = useCallback((screenX, screenY, loose = false) => {
     const slider = sliderRef.current;
     if (!slider) return null;
-    const rect     = slider.getBoundingClientRect();
-    const yPad     = loose ? 28 : 0;
-    const xPad     = loose ? 20 : 0;
+    const rect = slider.getBoundingClientRect();
+    const yPad = loose ? 28 : 0;
+    const xPad = loose ? 20 : 0;
     if (screenX < rect.left - xPad || screenX > rect.right + xPad || screenY < rect.top - yPad || screenY > rect.bottom + yPad) return null;
     const ratio = Math.min(1, Math.max(0, (screenX - rect.left) / rect.width));
     return Math.round(MIN_LINE_WIDTH + ratio * (MAX_LINE_WIDTH - MIN_LINE_WIDTH));
@@ -99,7 +98,6 @@ export default function ZeichnenWidget({ handPositions = {} }) {
     ctx.stroke();
   }, [mode, drawColor]);
 
-  // Build effective pinch state with grace period
   useEffect(() => {
     const hands = Object.entries(handPositions);
 
@@ -108,19 +106,16 @@ export default function ZeichnenWidget({ handPositions = {} }) {
       const reallyActive = detected && palmVisible !== false && isPinching;
 
       if (reallyActive) {
-        // Pinch active — cancel any grace timer
         if (graceTimers.current[handId]) {
           clearTimeout(graceTimers.current[handId]);
           delete graceTimers.current[handId];
         }
         effectivePinch.current[handId] = true;
       } else {
-        // Pinch off or hand gone — start grace if was effective
         if (effectivePinch.current[handId] && !graceTimers.current[handId]) {
           graceTimers.current[handId] = setTimeout(() => {
             delete graceTimers.current[handId];
             effectivePinch.current[handId] = false;
-            // Clear drawing position so next stroke starts fresh
             lastPosRef.current = null;
           }, PINCH_GRACE_MS);
         }
@@ -128,7 +123,6 @@ export default function ZeichnenWidget({ handPositions = {} }) {
     }
   }, [handPositions]);
 
-  // Drawing logic — uses effectivePinch instead of isPinching
   useEffect(() => {
     const pinchHands = Object.entries(handPositions)
       .filter(([handId, pos]) =>
@@ -139,7 +133,6 @@ export default function ZeichnenWidget({ handPositions = {} }) {
 
     let sliderControlled = false;
 
-    // Locked slider hand
     if (sliderHandRef.current) {
       const lockedHand = pinchHands.find(([handId]) => handId === sliderHandRef.current);
       if (lockedHand) {
@@ -172,7 +165,6 @@ export default function ZeichnenWidget({ handPositions = {} }) {
 
     sliderHandRef.current = null;
 
-    // Find first hand drawing on canvas
     let activeHand = null;
     for (const [, pos] of pinchHands) {
       const coords = getCanvasCoords(pos.x, pos.y);
@@ -188,14 +180,11 @@ export default function ZeichnenWidget({ handPositions = {} }) {
       }
       lastPosRef.current = { x: activeHand.canvasX, y: activeHand.canvasY };
     } else {
-      // No effective pinch on canvas — don't reset lastPos during grace period
-      // Only reset if truly no effective pinch at all
       const anyEffective = Object.values(effectivePinch.current).some(Boolean);
       if (!anyEffective) lastPosRef.current = null;
     }
   }, [handPositions, getCanvasCoords, drawLine, getSliderValueFromScreen]);
 
-  // Cleanup on unmount
   useEffect(() => () => {
     Object.values(graceTimers.current).forEach(clearTimeout);
   }, []);
@@ -216,7 +205,7 @@ export default function ZeichnenWidget({ handPositions = {} }) {
           <span className="zeichnen-slider-value">{lineWidth}</span>
         </div>
         <div className="zeichnen-toolbar-buttons">
-          <button className={`zeichnen-btn ${mode === 'draw'  ? 'active' : ''}`} onClick={() => setMode('draw')}  title="Stift"><PenIcon /></button>
+          <button className={`zeichnen-btn ${mode === 'draw' ? 'active' : ''}`} onClick={() => setMode('draw')} title="Stift"><PenIcon /></button>
           <button className={`zeichnen-btn ${mode === 'erase' ? 'active' : ''}`} onClick={() => setMode('erase')} title="Radierer"><EraserIcon /></button>
           <button className="zeichnen-btn" onClick={clearCanvas} title="Alles löschen">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

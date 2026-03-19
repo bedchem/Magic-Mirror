@@ -7,8 +7,8 @@ const WIDGET_REGISTRY = Object.entries(WIDGET_MODULES).map(([path, mod]) => {
     return { id: name, label: name.replace(/Widget$/, ''), Component: mod.default };
 });
 
-const TRASH_HEIGHT        = 110;
-const PINCH_GRACE_MS      = 600; // ignore pinch-off shorter than this
+const TRASH_HEIGHT = 110;
+const PINCH_GRACE_MS = 600;
 
 function TrashZone({ active, isOver }) {
     if (!active) return <div className="trash-zone" />;
@@ -42,7 +42,7 @@ function DraggableWidget({ instance, onMouseDragStart, isBeingDragged, handPosit
             >
                 <span className="draggable-widget__title">{label}</span>
                 <div className="draggable-widget__dots">
-                    {[0,1,2].map(i => <div key={i} className="draggable-widget__dot" />)}
+                    {[0, 1, 2].map(i => <div key={i} className="draggable-widget__dot" />)}
                 </div>
             </div>
             <div className="draggable-widget__content">
@@ -58,36 +58,34 @@ function DraggableWidget({ instance, onMouseDragStart, isBeingDragged, handPosit
 }
 
 function clampPos(x, y, instanceId) {
-    const el      = document.querySelector(`[data-widget-instance="${instanceId}"]`);
-    const w       = el?.offsetWidth ?? 300;
+    const el = document.querySelector(`[data-widget-instance="${instanceId}"]`);
+    const w = el?.offsetWidth ?? 300;
     const headerH = el?.querySelector('.draggable-widget__header')?.offsetHeight ?? 40;
     return {
-        x: Math.min(Math.max(x, 0), window.innerWidth  - w),
+        x: Math.min(Math.max(x, 0), window.innerWidth - w),
         y: Math.min(Math.max(y, 0), window.innerHeight - headerH),
     };
 }
 
 export default function WidgetDragManager({ handPositions = {}, spawnRef, initialWidgets = [], onWidgetsChange, onWidgetRemoved, onDraggingChange, isDarkMode = true }) {
     const [activeWidgets, setActiveWidgets] = useState([]);
-    const [focusOrder,    setFocusOrder]    = useState([]);
-    const [dragging,      setDragging]      = useState(null);
+    const [focusOrder, setFocusOrder] = useState([]);
+    const [dragging, setDragging] = useState(null);
     const onDraggingChangeRef = useRef(onDraggingChange);
     useEffect(() => { onDraggingChangeRef.current = onDraggingChange; }, [onDraggingChange]);
-    const [trashOver,     setTrashOver]     = useState(false);
+    const [trashOver, setTrashOver] = useState(false);
 
-    const nextId             = useRef(1);
-    const mouseDragRef       = useRef(null);
-    const handDragRef        = useRef(null);
-    const activeWidgetsRef   = useRef([]);
+    const nextId = useRef(1);
+    const mouseDragRef = useRef(null);
+    const handDragRef = useRef(null);
+    const activeWidgetsRef = useRef([]);
     const onWidgetsChangeRef = useRef(onWidgetsChange);
     const onWidgetRemovedRef = useRef(onWidgetRemoved);
-    const initializedRef     = useRef(false);
+    const initializedRef = useRef(false);
 
-    // Per-hand state for grace-period logic
-    // effectivePinch: true while pinching OR within grace window
-    const effectivePinch = useRef({}); // handIndex → bool
-    const graceTimers    = useRef({}); // handIndex → timeoutId
-    const lastHy         = useRef({}); // handIndex → last known hy (for trash on release)
+    const effectivePinch = useRef({});
+    const graceTimers = useRef({});
+    const lastHy = useRef({});
 
     useEffect(() => { onWidgetsChangeRef.current = onWidgetsChange; }, [onWidgetsChange]);
     useEffect(() => { onWidgetRemovedRef.current = onWidgetRemoved; }, [onWidgetRemoved]);
@@ -97,7 +95,7 @@ export default function WidgetDragManager({ handPositions = {}, spawnRef, initia
         if (initializedRef.current || !initialWidgets.length) return;
         initializedRef.current = true;
         const restored = initialWidgets.map(w => {
-            const id  = w.id || `w${nextId.current++}`;
+            const id = w.id || `w${nextId.current++}`;
             const num = parseInt(id.replace('w', ''));
             if (!isNaN(num) && num >= nextId.current) nextId.current = num + 1;
             return { id, widgetId: w.widgetId, x: w.x, y: w.y };
@@ -128,7 +126,7 @@ export default function WidgetDragManager({ handPositions = {}, spawnRef, initia
             setFocusOrder(order => [...order, id]);
             return [...prev, {
                 id, widgetId,
-                x: Math.max(0, (window.innerWidth  - 320) / 2),
+                x: Math.max(0, (window.innerWidth - 320) / 2),
                 y: Math.max(0, (window.innerHeight - 400) / 2),
             }];
         });
@@ -142,12 +140,11 @@ export default function WidgetDragManager({ handPositions = {}, spawnRef, initia
         onWidgetRemovedRef.current?.(id);
     }, []);
 
-    // Notify parent whenever dragging starts/stops
     const setDraggingAndNotify = useCallback((val) => {
         setDragging(prev => {
             const next = typeof val === 'function' ? val(prev) : val;
             const wasActive = prev !== null;
-            const isActive  = next !== null;
+            const isActive = next !== null;
             if (wasActive !== isActive) onDraggingChangeRef.current?.(isActive);
             return next;
         });
@@ -158,7 +155,6 @@ export default function WidgetDragManager({ handPositions = {}, spawnRef, initia
         setActiveWidgets(prev => prev.map(w => w.id === id ? { ...w, x: cx, y: cy } : w));
     }, []);
 
-    // ── Mouse drag ─────────────────────────────────────────────────────────────
     const handleMouseDragStart = useCallback((e, instanceId, instanceX, instanceY) => {
         e.preventDefault();
         bringToFront(instanceId);
@@ -185,19 +181,18 @@ export default function WidgetDragManager({ handPositions = {}, spawnRef, initia
             setTrashOver(false);
         };
         document.addEventListener('mousemove', onMove);
-        document.addEventListener('mouseup',   onUp);
+        document.addEventListener('mouseup', onUp);
         return () => {
             document.removeEventListener('mousemove', onMove);
-            document.removeEventListener('mouseup',   onUp);
+            document.removeEventListener('mouseup', onUp);
         };
     }, [dragging, moveWidget, removeWidget]);
 
-    // ── Hover highlight ────────────────────────────────────────────────────────
     const prevHoverEls = useRef(new Set());
-    const updateHover  = useCallback((hx, hy) => {
-        const els  = document.elementsFromPoint(hx, hy);
-        const btn  = els.find(el => el.tagName === 'BUTTON' || el.closest?.('button'));
-        const hEl  = btn?.closest?.('button') ?? btn ?? null;
+    const updateHover = useCallback((hx, hy) => {
+        const els = document.elementsFromPoint(hx, hy);
+        const btn = els.find(el => el.tagName === 'BUTTON' || el.closest?.('button'));
+        const hEl = btn?.closest?.('button') ?? btn ?? null;
         const prev = prevHoverEls.current;
         const next = new Set(hEl ? [hEl] : []);
         for (const el of prev) { if (!next.has(el)) el.classList.remove('hand-hover'); }
@@ -205,15 +200,12 @@ export default function WidgetDragManager({ handPositions = {}, spawnRef, initia
         prevHoverEls.current = next;
     }, []);
 
-    // ── Hand tracking ──────────────────────────────────────────────────────────
     useEffect(() => {
         for (const pos of Object.values(handPositions)) {
             const { handIndex, detected, palmVisible, isPinching, x: hx, y: hy } = pos;
 
-            // Track last known hy for trash detection on delayed release
             if (detected && hy != null) lastHy.current[handIndex] = hy;
 
-            // True release: fires after grace period expires
             const doRelease = (handIndex) => {
                 if (handDragRef.current?.handIndex === handIndex) {
                     const { instanceId } = handDragRef.current;
@@ -226,16 +218,14 @@ export default function WidgetDragManager({ handPositions = {}, spawnRef, initia
                 effectivePinch.current[handIndex] = false;
             };
 
-            // Start grace timer — real pinch-off or hand lost
             const startGrace = (hi) => {
-                if (graceTimers.current[hi]) return; // already running
+                if (graceTimers.current[hi]) return;
                 graceTimers.current[hi] = setTimeout(() => {
                     delete graceTimers.current[hi];
                     doRelease(hi);
                 }, PINCH_GRACE_MS);
             };
 
-            // Cancel grace — pinch came back
             const cancelGrace = (hi) => {
                 if (graceTimers.current[hi]) {
                     clearTimeout(graceTimers.current[hi]);
@@ -243,7 +233,6 @@ export default function WidgetDragManager({ handPositions = {}, spawnRef, initia
                 }
             };
 
-            // Hand fully gone: start grace if was pinching, otherwise reset immediately
             if (!detected || palmVisible === false) {
                 if (effectivePinch.current[handIndex]) {
                     startGrace(handIndex);
@@ -256,12 +245,10 @@ export default function WidgetDragManager({ handPositions = {}, spawnRef, initia
             updateHover(hx, hy);
 
             if (isPinching) {
-                // Pinch is back → cancel grace, stay/become effective
                 cancelGrace(handIndex);
                 const wasEffective = effectivePinch.current[handIndex];
                 effectivePinch.current[handIndex] = true;
 
-                // ── Continue active drag ──────────────────────────────────────
                 if (handDragRef.current?.handIndex === handIndex) {
                     const { instanceId, offsetX, offsetY } = handDragRef.current;
                     moveWidget(instanceId, hx - offsetX, hy - offsetY);
@@ -272,16 +259,13 @@ export default function WidgetDragManager({ handPositions = {}, spawnRef, initia
                     continue;
                 }
 
-                // ── Leading edge (first frame of this pinch gesture) ──────────
                 if (!wasEffective) {
                     const els = document.elementsFromPoint(hx, hy);
 
-                    // Focus widget under hand
                     const widgetEl = els.find(el => el.closest?.('[data-widget-instance]'));
-                    const focusId  = widgetEl?.closest('[data-widget-instance]')?.dataset?.widgetInstance;
+                    const focusId = widgetEl?.closest('[data-widget-instance]')?.dataset?.widgetInstance;
                     if (focusId) bringToFront(focusId);
 
-                    // Drum / kalender — let widget handle
                     const isDrum = els.some(el =>
                         el.hasAttribute?.('data-drum-index') ||
                         el.closest?.('[data-drum-index]') ||
@@ -292,19 +276,17 @@ export default function WidgetDragManager({ handPositions = {}, spawnRef, initia
                     );
                     if (isDrum) continue;
 
-                    // Button click
-                    const btn       = els.find(el => el.tagName === 'BUTTON' || el.closest?.('button'));
+                    const btn = els.find(el => el.tagName === 'BUTTON' || el.closest?.('button'));
                     const btnTarget = btn?.closest?.('button') ?? btn;
                     if (btnTarget) { btnTarget.click(); continue; }
 
-                    // Header → start drag
                     const headerEl = els.find(el =>
                         el.classList?.contains('draggable-widget__header') ||
                         el.closest?.('.draggable-widget__header')
                     );
                     if (headerEl) {
                         const instEl = headerEl.closest('[data-widget-instance]');
-                        const iid    = instEl?.dataset?.widgetInstance;
+                        const iid = instEl?.dataset?.widgetInstance;
                         if (iid) {
                             const w = activeWidgetsRef.current.find(w => w.id === iid);
                             if (w) {
@@ -316,7 +298,6 @@ export default function WidgetDragManager({ handPositions = {}, spawnRef, initia
                 }
 
             } else {
-                // Pinch off — start grace period
                 if (effectivePinch.current[handIndex]) {
                     startGrace(handIndex);
                 }

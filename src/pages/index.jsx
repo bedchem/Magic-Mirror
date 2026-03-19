@@ -48,16 +48,16 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 function rfidUidToUuid(uid) {
   const hex = uid.replace(/\s+/g, '').toLowerCase();
   const padded = hex.padEnd(32, '0');
-  return `${padded.slice(0,8)}-${padded.slice(8,12)}-${padded.slice(12,16)}-${padded.slice(16,20)}-${padded.slice(20,32)}`;
+  return `${padded.slice(0, 8)}-${padded.slice(8, 12)}-${padded.slice(12, 16)}-${padded.slice(16, 20)}-${padded.slice(20, 32)}`;
 }
 
 const LocalStorageUtils = {
   getUser: (uuid) => { try { const data = localStorage.getItem(`user-${uuid}`); return data ? JSON.parse(data) : null; } catch (e) { return null; } },
-  setUser: (uuid, user) => { try { localStorage.setItem(`user-${uuid}`, JSON.stringify(user)); } catch (e) {} },
+  setUser: (uuid, user) => { try { localStorage.setItem(`user-${uuid}`, JSON.stringify(user)); } catch (e) { } },
   initializeUser: () => { const existing = LocalStorageUtils.getUser(ONLINE_UUID); if (!existing) LocalStorageUtils.setUser(ONLINE_UUID, { uuid: ONLINE_UUID, name: '', isNew: true }); return LocalStorageUtils.getUser(ONLINE_UUID); },
   setUserName: (uuid, name) => { const user = LocalStorageUtils.getUser(uuid); if (user) { user.name = name; LocalStorageUtils.setUser(uuid, user); return user; } return null; },
   getWidgetPositions: (uuid) => { try { const data = localStorage.getItem(`widgets-${uuid}`); return data ? JSON.parse(data) : []; } catch (e) { return []; } },
-  saveWidgetPositions: (uuid, widgets) => { try { localStorage.setItem(`widgets-${uuid}`, JSON.stringify(widgets)); } catch (e) {} },
+  saveWidgetPositions: (uuid, widgets) => { try { localStorage.setItem(`widgets-${uuid}`, JSON.stringify(widgets)); } catch (e) { } },
   deleteWidgetPosition: (uuid, instanceId) => { const widgets = LocalStorageUtils.getWidgetPositions(uuid); LocalStorageUtils.saveWidgetPositions(uuid, widgets.filter(w => w.id !== instanceId)); },
 };
 
@@ -70,9 +70,9 @@ function getGreetingByTime(date = new Date()) {
 }
 
 const NAME_KEYBOARD_ROWS = [
-  ['Q','W','E','R','T','Y','U','I','O','P'],
-  ['A','S','D','F','G','H','J','K','L'],
-  ['Z','X','C','V','B','N','M'],
+  ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
+  ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
+  ['Z', 'X', 'C', 'V', 'B', 'N', 'M'],
 ];
 const ONBOARDING_PINCH_DEBOUNCE_MS = 220;
 
@@ -225,21 +225,18 @@ function LockScreen({ onUnlock, demoMode = false }) {
         const res = await fetch('http://localhost:3000/api/rfid/last');
         if (!res.ok) return;
         const data = await res.json();
-        
-        // Check if we have a new RFID scan
+
         if (!data.uid || data.uid === lastRFIDRef.current) return;
         lastRFIDRef.current = data.uid;
 
         if (DEBUG) console.log('[Frontend] RFID Scan detected:', { uid: data.uid, uuid: data.uuid, user: data.user });
 
         if (ONLINE) {
-          // Online mode: direkt unlock
           triggerUnlock(ONLINE_UUID);
         } else {
-          // Offline mode: use the UUID and user from RFID scan
           const uuid = data.uuid;
           const user = data.user;
-          
+
           if (!uuid) {
             if (DEBUG) console.warn('[Frontend] RFID: UUID fehlt in Response');
             return;
@@ -259,7 +256,7 @@ function LockScreen({ onUnlock, demoMode = false }) {
 
     pollingRef.current = setInterval(pollNFC, 500);
     return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
-  }, [triggerUnlock]);  // <-- phase-Abhängigkeit kommt über triggerUnlock rein
+  }, [triggerUnlock]);
 
   const handleClick = useCallback(() => {
     if (ONLINE) { triggerUnlock(ONLINE_UUID); }
@@ -523,7 +520,7 @@ export default function IndexPage() {
       try {
         if (ONLINE) LocalStorageUtils.saveWidgetPositions(uuid, widgets);
         else await fetch(`http://localhost:3000/api/widget-positions/${uuid}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ widgets }) });
-      } catch (e) {}
+      } catch (e) { }
     }, 800);
   }, []);
 
@@ -531,7 +528,7 @@ export default function IndexPage() {
     try {
       if (ONLINE) LocalStorageUtils.deleteWidgetPosition(uuid, instanceId);
       else await fetch(`http://localhost:3000/api/widget-positions/${uuid}/${instanceId}`, { method: 'DELETE' });
-    } catch (e) {}
+    } catch (e) { }
   }, []);
 
   const handleWidgetsChange = useCallback((widgets) => { activeWidgetsRef.current = widgets; if (currentUser) persistWidgetPositions(currentUser, widgets); }, [currentUser, persistWidgetPositions]);

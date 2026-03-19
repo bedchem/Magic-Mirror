@@ -99,36 +99,37 @@
 .wetter-error {
     color: #f87171;
 }
+
 /* Light Mode */
 .draggable-widget--light .wetter-temp {
-  color: #333333;
+    color: #333333;
 }
 
 .draggable-widget--light .wetter-desc {
-  color: rgba(51, 51, 51, 0.5);
+    color: rgba(51, 51, 51, 0.5);
 }
 
 .draggable-widget--light .wetter-location {
-  color: rgba(51, 51, 51, 0.3);
+    color: rgba(51, 51, 51, 0.3);
 }
 
 .draggable-widget--light .wetter-forecast {
-  border-top-color: rgba(59, 130, 246, 0.15);
+    border-top-color: rgba(59, 130, 246, 0.15);
 }
 
 .draggable-widget--light .wetter-day-name {
-  color: rgba(51, 51, 51, 0.6);
+    color: rgba(51, 51, 51, 0.6);
 }
 
 .draggable-widget--light .wetter-day-max {
-  color: #22c55e;
+    color: #22c55e;
 }
 
 .draggable-widget--light .wetter-day-min {
-  color: #ef4444;
+    color: #ef4444;
 }
 
 .draggable-widget--light .wetter-loading,
 .draggable-widget--light .wetter-error {
-  color: rgba(51, 51, 51, 0.4);
+    color: rgba(51, 51, 51, 0.4);
 }

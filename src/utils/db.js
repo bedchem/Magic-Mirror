@@ -47,7 +47,6 @@ export async function initDB() {
     await db.exec('ALTER TABLE users ADD COLUMN name TEXT');
   }
 
-  // ✅ Neue Spalte: rfid_uid in users-Tabelle
   const hasRfidColumn = userCols.some(col => col.name === 'rfid_uid');
   if (!hasRfidColumn) {
     await db.exec('ALTER TABLE users ADD COLUMN rfid_uid TEXT');
@@ -82,11 +81,9 @@ export async function upsertUser(uuid) {
   return { ...user, isNew: (result?.changes ?? 0) > 0 };
 }
 
-// ✅ Neuer User per RFID-UID anlegen oder vorhandenen zurückgeben
 export async function upsertUserByRFID(rfidUid) {
   const database = getDB();
 
-  // Schauen ob dieser RFID schon einen User hat
   const existing = await database.get(
     'SELECT * FROM users WHERE rfid_uid = ?',
     rfidUid
@@ -97,7 +94,6 @@ export async function upsertUserByRFID(rfidUid) {
     return { ...existing, isNew: false };
   }
 
-  // Neuen User mit echter UUID anlegen
   const newUuid = randomUUID();
   await database.run(
     'INSERT INTO users (uuid, rfid_uid) VALUES (?, ?)',

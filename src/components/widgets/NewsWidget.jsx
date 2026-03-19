@@ -3,8 +3,6 @@ import "/src/styles/NewsWidget.css";
 
 const API_URL = "https://www.tagesschau.de/api2u/news";
 
-// How many pixels of Y travel during a pinch counts as "scrolling"
-// — above this threshold the card-open is suppressed.
 const SCROLL_INTENT_THRESHOLD = 8;
 
 function timeAgo(dateStr) {
@@ -87,10 +85,7 @@ export default function NewsWidget({ handPositions = {} }) {
   const prevYRef = useRef({});
   const activeScrollRef = useRef({});
   const wasPinchingRef = useRef({});
-  // Tracks the Y position where each hand first pinched — used to measure
-  // accumulated travel before deciding whether to open a card.
   const pinchOriginYRef = useRef({});
-  // Accumulated Y travel since pinch start (before scroll mode activates).
   const pinchTravelRef = useRef({});
 
   const fetchNews = useCallback(async () => {
@@ -136,7 +131,6 @@ export default function NewsWidget({ handPositions = {} }) {
       const tx = x ?? pinchMidX;
       const ty = y ?? pinchMidY;
 
-      // Hand released or lost — reset all state for this hand.
       if (!detected || palmVisible === false || !isPinching) {
         activeScrollRef.current[handIndex] = false;
         prevYRef.current[handIndex] = null;
@@ -151,12 +145,10 @@ export default function NewsWidget({ handPositions = {} }) {
         continue;
       }
 
-      // --- Pinch just started ---
       if (!wasPinching) {
         pinchOriginYRef.current[handIndex] = ty;
         pinchTravelRef.current[handIndex] = 0;
       } else {
-        // Accumulate travel while still deciding scroll vs tap.
         if (!activeScrollRef.current[handIndex]) {
           const prev = prevYRef.current[handIndex];
           if (prev != null) {
@@ -173,7 +165,6 @@ export default function NewsWidget({ handPositions = {} }) {
         (el) => el === listRef.current || el.closest?.(".nw-list")
       );
 
-      // --- Card open: only fire if hand hasn't scrolled significantly ---
       if (!wasPinching && status === "success" && !selected) {
         const travel = pinchTravelRef.current[handIndex] ?? 0;
         if (travel < SCROLL_INTENT_THRESHOLD) {
@@ -194,10 +185,8 @@ export default function NewsWidget({ handPositions = {} }) {
         }
       }
 
-      // --- Scroll mode activation ---
       if (!activeScrollRef.current[handIndex]) {
         const travel = pinchTravelRef.current[handIndex] ?? 0;
-        // Commit to scroll only once we've crossed the threshold over the list.
         if (!overList || travel < SCROLL_INTENT_THRESHOLD) {
           prevYRef.current[handIndex] = ty;
           wasPinchingRef.current[handIndex] = isPinching;
@@ -209,7 +198,6 @@ export default function NewsWidget({ handPositions = {} }) {
         continue;
       }
 
-      // --- Active scrolling ---
       const py = prevYRef.current[handIndex];
       if (py != null && listRef.current) {
         const delta = py - ty;

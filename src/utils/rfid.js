@@ -1,4 +1,3 @@
-// rfid.js
 import { SerialPort } from 'serialport';
 import { ReadlineParser } from '@serialport/parser-readline';
 import { upsertUserByRFID } from './db.js';
@@ -30,7 +29,7 @@ parser.on('data', async (line) => {
   try {
     const user = await upsertUserByRFID(rfidUid);
 
-    global.lastRFIDUid  = rfidUid;
+    global.lastRFIDUid = rfidUid;
     global.lastRFIDUuid = user.uuid;
     global.lastRFIDTime = timestamp;
     global.lastRFIDUser = user;
