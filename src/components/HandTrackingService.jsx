@@ -373,19 +373,33 @@ const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings
         const prev = smoothedRef.current[handIndex];
         let sx = ax, sy = ay;
 
-        if (prev) {
+if (prev) {
           const moveDist = Math.hypot(ax - prev.x, ay - prev.y);
-          const deadzone = 0.01 / Math.max(sensitivityRef.current, 0.25);
+          const deadzone = 0.003 / Math.max(sensitivityRef.current, 0.25);
           if (moveDist < deadzone) {
             sx = prev.x; sy = prev.y;
           } else if (sm > 0) {
-            const effectiveSm = isPinching ? Math.min(sm + 0.12, 0.92) : sm;
-            const adaptiveSm = moveDist > 0.06 ? Math.max(effectiveSm - 0.15, 0) : effectiveSm;
-            sx = prev.x + (ax - prev.x) * (1 - adaptiveSm);
-            sy = prev.y + (ay - prev.y) * (1 - adaptiveSm);
+            const velX = prev.velX ?? 0;
+            const velY = prev.velY ?? 0;
+            const predX = prev.x + velX;
+            const predY = prev.y + velY;
+            const fastBlend = Math.min(moveDist / 0.06, 1.0);
+            const targetX = ax * (1 - fastBlend * 0.4) + predX * (fastBlend * 0.4);
+            const targetY = ay * (1 - fastBlend * 0.4) + predY * (fastBlend * 0.4);
+            const baseSm = isPinching ? Math.min(sm + 0.06, 0.88) : sm;
+            const speedFactor = Math.min(moveDist / 0.05, 1.0);
+            const finalSm = baseSm * (1 - speedFactor * 0.55);
+            sx = prev.x + (targetX - prev.x) * (1 - finalSm);
+            sy = prev.y + (targetY - prev.y) * (1 - finalSm);
           }
         }
-        smoothedRef.current[handIndex] = { x: sx, y: sy };
+        const velX = sx - (prev?.x ?? sx);
+        const velY = sy - (prev?.y ?? sy);
+        smoothedRef.current[handIndex] = {
+          x: sx, y: sy,
+          velX: ((prev?.velX ?? 0) * 0.6 + velX * 0.4),
+          velY: ((prev?.velY ?? 0) * 0.6 + velY * 0.4),
+        };
 
         posCallbackRef.current?.({
           x: sx * window.innerWidth,

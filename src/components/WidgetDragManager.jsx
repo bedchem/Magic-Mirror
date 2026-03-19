@@ -41,9 +41,7 @@ function DraggableWidget({ instance, onMouseDragStart, isBeingDragged, handPosit
                 onMouseDown={e => onMouseDragStart(e, instance.id, instance.x, instance.y)}
             >
                 <span className="draggable-widget__title">{label}</span>
-                <div className="draggable-widget__dots">
-                    {[0, 1, 2].map(i => <div key={i} className="draggable-widget__dot" />)}
-                </div>
+
             </div>
             <div className="draggable-widget__content">
                 <Component
@@ -220,12 +218,17 @@ export default function WidgetDragManager({ handPositions = {}, spawnRef, initia
 
             const startGrace = (hi) => {
                 if (graceTimers.current[hi]) return;
+                // Over trash zone → release immediately, no grace
+                const hyNow = lastHy.current[hi] ?? 0;
+                if (hyNow > window.innerHeight - TRASH_HEIGHT) {
+                    doRelease(hi);
+                    return;
+                }
                 graceTimers.current[hi] = setTimeout(() => {
                     delete graceTimers.current[hi];
                     doRelease(hi);
                 }, PINCH_GRACE_MS);
             };
-
             const cancelGrace = (hi) => {
                 if (graceTimers.current[hi]) {
                     clearTimeout(graceTimers.current[hi]);
