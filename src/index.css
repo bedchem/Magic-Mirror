@@ -690,6 +690,117 @@ body {
   }
 }
 
+/* Light Mode Onboarding */
+.name-onboarding-overlay--light {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.name-onboarding-card--light {
+  background: rgba(245, 250, 255, 0.97);
+  border-color: rgba(59, 130, 246, 0.2);
+  box-shadow:
+    0 0 0 1px rgba(59, 130, 246, 0.06),
+    0 30px 80px rgba(0, 0, 0, 0.15),
+    0 0 60px rgba(59, 130, 246, 0.06);
+}
+
+.name-onboarding-card--light .name-onboarding-title {
+  color: #333333;
+}
+
+.name-onboarding-card--light .name-onboarding-subtitle {
+  color: rgba(51, 51, 51, 0.35);
+}
+
+.name-onboarding-card--light .name-onboarding-input {
+  border-color: rgba(59, 130, 246, 0.4);
+  background: rgba(59, 130, 246, 0.07);
+  color: #333333;
+}
+
+.name-onboarding-card--light .name-onboarding-input__placeholder {
+  color: rgba(51, 51, 51, 0.2);
+}
+
+.name-onboarding-card--light .name-onboarding-input__cursor {
+  background: rgba(59, 130, 246, 0.9);
+}
+
+.name-onboarding-card--light .name-kb {
+  background: rgba(240, 245, 255, 0.8);
+  border-color: rgba(59, 130, 246, 0.12);
+}
+
+.name-onboarding-card--light .name-kb-key {
+  border-color: rgba(59, 130, 246, 0.16);
+  background: rgba(230, 240, 255, 0.85);
+  color: rgba(59, 130, 246, 0.8);
+  box-shadow: inset 0 1px 0 rgba(59, 130, 246, 0.1);
+}
+
+.name-onboarding-card--light .name-kb-key::after {
+  background: linear-gradient(180deg, rgba(59, 130, 246, 0.04) 0%, transparent 60%);
+}
+
+.name-onboarding-card--light .name-kb-key:hover:not(:disabled) {
+  background: rgba(200, 225, 255, 0.85);
+  border-color: rgba(59, 130, 246, 0.5);
+  color: #333333;
+  box-shadow:
+    inset 0 1px 0 rgba(59, 130, 246, 0.1),
+    0 6px 16px rgba(59, 130, 246, 0.15);
+}
+
+.name-onboarding-card--light .name-kb-key:active:not(:disabled) {
+  background: rgba(180, 210, 255, 0.9);
+  box-shadow: inset 0 1px 4px rgba(59, 130, 246, 0.2);
+}
+
+.name-onboarding-card--light .name-kb-key--hand-hover {
+  background: rgba(59, 130, 246, 0.2) !important;
+  border-color: rgba(59, 130, 246, 0.75) !important;
+  color: #333333 !important;
+  box-shadow:
+    inset 0 1px 0 rgba(59, 130, 246, 0.12),
+    0 0 0 2px rgba(59, 130, 246, 0.35),
+    0 0 18px rgba(59, 130, 246, 0.25),
+    0 6px 20px rgba(59, 130, 246, 0.15) !important;
+}
+
+.name-onboarding-card--light .name-kb-key--cancel {
+  background: rgba(240, 240, 245, 0.7);
+  border-color: rgba(100, 100, 120, 0.2);
+  color: rgba(100, 100, 120, 0.6);
+}
+
+.name-onboarding-card--light .name-kb-key--cancel:hover:not(:disabled) {
+  background: rgba(255, 200, 200, 0.2);
+  border-color: rgba(248, 113, 113, 0.4);
+  color: #ef4444;
+}
+
+.name-onboarding-card--light .name-kb-key--cancel.name-kb-key--hand-hover {
+  background: rgba(248, 113, 113, 0.15) !important;
+  border-color: rgba(248, 113, 113, 0.6) !important;
+  color: #ef4444 !important;
+}
+
+.name-onboarding-card--light .name-kb-key--done {
+  background: rgba(59, 130, 246, 0.8);
+  border-color: rgba(59, 130, 246, 0.6);
+  color: #ffffff;
+}
+
+.name-onboarding-card--light .name-kb-key--done:hover:not(:disabled) {
+  background: rgba(59, 130, 246, 0.9);
+  border-color: rgba(59, 130, 246, 0.8);
+  box-shadow: 0 0 24px rgba(59, 130, 246, 0.3);
+}
+
+.name-onboarding-card--light .name-onboarding-error {
+  color: #ef4444;
+}
+
 .name-kb {
   display: flex;
   flex-direction: column;

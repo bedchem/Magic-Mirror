@@ -137,7 +137,7 @@ function UUIDModal({ onConfirm, onCancel }) {
   );
 }
 
-function NameOnboarding({ uuid, handPositions, onComplete, onCancel }) {
+function NameOnboarding({ uuid, handPositions, onComplete, onCancel, isDarkMode = false }) {
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -188,8 +188,8 @@ function NameOnboarding({ uuid, handPositions, onComplete, onCancel }) {
     setHoveredKey(newHoveredKey);
   }, [handPositions, applyKey, handleSave]);
   return (
-    <div className="name-onboarding-overlay" role="dialog" aria-modal="true">
-      <div className="name-onboarding-card">
+    <div className={`name-onboarding-overlay${!isDarkMode ? ' name-onboarding-overlay--light' : ''}`} role="dialog" aria-modal="true">
+      <div className={`name-onboarding-card${!isDarkMode ? ' name-onboarding-card--light' : ''}`}>
         <h2 className="name-onboarding-title">New account detected</h2>
         <p className="name-onboarding-subtitle">Type your name with pinches, then press DONE.</p>
         <div className="name-onboarding-input" aria-live="polite">
@@ -459,7 +459,7 @@ export default function IndexPage() {
   const [pendingNameSetup, setPendingNameSetup] = useState(null);
   const [welcomeText, setWelcomeText] = useState('');
   const [isDragging, setIsDragging] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(true);
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
   const videoRef = useRef(null);
   const complimentRequestedRef = useRef(false);
@@ -609,7 +609,7 @@ export default function IndexPage() {
           <LiveCursor handIndex={0} />
           <LiveCursor handIndex={1} />
           {pendingNameSetup && (
-            <NameOnboarding uuid={pendingNameSetup.uuid} handPositions={handPositions} onComplete={handleNameSetupDone} onCancel={handleLogout} />
+            <NameOnboarding uuid={pendingNameSetup.uuid} handPositions={handPositions} onComplete={handleNameSetupDone} onCancel={handleLogout} isDarkMode={isDarkMode} />
           )}
           {welcomeText && <div className="welcome-greeting" role="status" aria-live="polite">{welcomeText}</div>}
           {compliment && (
