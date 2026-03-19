@@ -6,7 +6,7 @@ import notificationImage from '../assets/notification.png';
 const DEBUG = true;
 const ONLINE = false;
 const ONLINE_UUID = 'online-user-default';
-
+const pi = true;
 const defaultSettings = {
   enabled: true,
   showPreview: DEBUG,
@@ -577,7 +577,7 @@ export default function IndexPage() {
 
   return (
     <div className="index-page">
-      <HandTrackingService settings={defaultSettings} enabled={true} onHandPosition={handleHandPosition} onVideoReady={handleTrackingVideoReady} />
+      <HandTrackingService settings={defaultSettings} enabled={true} onHandPosition={handleHandPosition} onVideoReady={handleTrackingVideoReady} flipCamera={pi} />
 
       {!loggedIn && <LockScreen onUnlock={handleUnlock} demoMode={DEBUG} />}
 

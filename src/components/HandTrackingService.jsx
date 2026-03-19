@@ -91,7 +91,7 @@ const makeEmptySlot = () => ({
 });
 const makeEmptySlots = () => ({ [PRIMARY_SLOT]: makeEmptySlot() });
 
-const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings = {}, enabled }) => {
+const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings = {}, enabled, flipCamera = false }) => {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const procCanvasRef = useRef(null);
@@ -107,6 +107,7 @@ const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings
   const sensitivityRef = useRef(1);
   const cameraRef = useRef(null);
   const handsRef = useRef(null);
+  const flipCameraRef = useRef(flipCamera);
   const runtimeConfigRef = useRef(getHandTrackingRuntimeConfig(settings));
   const fpsRef = useRef({ value: 0, last: performance?.now?.() ?? Date.now() });
   const cameraFpsRef = useRef({ value: 0, lastNow: 0, lastFrames: null, callbackId: null, fallback: 0 });
@@ -129,6 +130,10 @@ const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings
     smoothingRef.current = clampVal(settings.smoothing, 0, 0.95, 0);
     sensitivityRef.current = clampVal(settings.sensitivity, 0.25, 3, 1);
   }, [settings]);
+
+  useEffect(() => {
+    flipCameraRef.current = flipCamera;
+  }, [flipCamera]);
 
   useEffect(() => { posCallbackRef.current = onHandPosition; }, [onHandPosition]);
   useEffect(() => { gestureCallbackRef.current = onGesture; }, [onGesture]);
@@ -166,6 +171,9 @@ const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings
     if (showPreviewRef.current) {
       ctx.save();
       ctx.translate(w, 0); ctx.scale(-1, 1);
+      if (flipCameraRef.current) {
+        ctx.translate(0, h); ctx.scale(1, -1);
+      }
       ctx.filter = getExposureFilterString(s);
       ctx.drawImage(video, 0, 0, w, h);
       ctx.restore();
@@ -576,7 +584,7 @@ const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings
         onMouseDown={e => { setDragging(true); setDragOrigin({ x: e.clientX - previewPos.x, y: e.clientY - previewPos.y }); }}
       >
         <div style={{ color: '#fff', fontSize: 12, marginBottom: 4, textAlign: 'center' }}>Hand Tracking</div>
-        <video ref={videoRef} style={{ display: 'none' }} playsInline autoPlay muted />
+        <video ref={videoRef} style={{ display: 'none', transform: flipCamera ? 'scaleY(-1)' : 'none' }} playsInline autoPlay muted />
         <canvas
           ref={canvasRef}
           style={{
