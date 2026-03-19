@@ -7,6 +7,7 @@ const DEBUG = true;
 const ONLINE = false;
 const ONLINE_UUID = 'online-user-default';
 const pi = true;
+
 const defaultSettings = {
   enabled: true,
   showPreview: DEBUG,

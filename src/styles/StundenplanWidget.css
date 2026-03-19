@@ -637,3 +637,7 @@
   background: rgba(150, 150, 180, 0.8);
   color: #333333;
 }
+
+.draggable-widget--light .sp-days-row {
+  background: rgba(255, 255, 255, 0);
+}

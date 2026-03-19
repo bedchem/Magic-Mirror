@@ -3,7 +3,11 @@ import "/src/styles/NewsWidget.css";
 
 const API_URL = "https://www.tagesschau.de/api2u/news";
 
-const SCROLL_INTENT_THRESHOLD = 8;
+const SCROLL_INTENT_THRESHOLD = 22;
+
+// Gesture states per hand
+// null → "pending" → "scroll"
+// null → "pending" → (release) → click fires
 
 function timeAgo(dateStr) {
   const diff = Math.floor((Date.now() - new Date(dateStr)) / 60000);
@@ -51,7 +55,11 @@ function ArticleModal({ article, onClose }) {
 
 function ArticleCard({ article, onClick }) {
   return (
-    <div className="nw-card" data-nw-article-index={article.index} onClick={() => onClick(article)}>
+    <div
+      className="nw-card"
+      data-nw-article-index={article.index}
+      onClick={() => onClick(article)}
+    >
       {article.urlToImage && (
         <img
           src={article.urlToImage}
@@ -81,12 +89,14 @@ export default function NewsWidget({ handPositions = {} }) {
   const [articles, setArticles] = useState([]);
   const [status, setStatus] = useState("loading");
   const [selected, setSelected] = useState(null);
+
   const listRef = useRef(null);
+
+  // Per-hand gesture state machine
+  // gestureStateRef[handIndex]: null | "pending" | "scroll"
+  const gestureStateRef = useRef({});
   const prevYRef = useRef({});
-  const activeScrollRef = useRef({});
-  const wasPinchingRef = useRef({});
   const pinchOriginYRef = useRef({});
-  const pinchTravelRef = useRef({});
 
   const fetchNews = useCallback(async () => {
     setStatus("loading");
@@ -122,89 +132,98 @@ export default function NewsWidget({ handPositions = {} }) {
   useEffect(() => {
     for (const pos of Object.values(handPositions)) {
       const {
-        handIndex, detected, palmVisible, isPinching,
-        pinchMidX, pinchMidY, x, y,
+        handIndex,
+        detected,
+        palmVisible,
+        isPinching,
+        pinchMidX,
+        pinchMidY,
+        x,
+        y,
       } = pos;
-
-      const wasPinching = Boolean(wasPinchingRef.current[handIndex]);
 
       const tx = x ?? pinchMidX;
       const ty = y ?? pinchMidY;
+      const state = gestureStateRef.current[handIndex] ?? null;
 
+      // ── Hand lost / palm hidden / not pinching → reset ──────────────────
       if (!detected || palmVisible === false || !isPinching) {
-        activeScrollRef.current[handIndex] = false;
+        if (state === "pending") {
+          // Short pinch with no scroll movement → treat as click
+          if (
+            status === "success" &&
+            !selected &&
+            Number.isFinite(tx) &&
+            Number.isFinite(ty)
+          ) {
+            const cx = Math.max(0, Math.min(window.innerWidth - 1, tx));
+            const cy = Math.max(0, Math.min(window.innerHeight - 1, ty));
+            const els = document.elementsFromPoint(cx, cy);
+            const cardEl = els.find(
+              (el) =>
+                el.classList?.contains("nw-card") ||
+                el.closest?.(".nw-card")
+            );
+            const card = cardEl?.closest?.(".nw-card") ?? cardEl;
+            const articleIndex = Number(card?.dataset?.nwArticleIndex);
+            if (Number.isInteger(articleIndex) && articles[articleIndex]) {
+              setSelected(articles[articleIndex]);
+            }
+          }
+        }
+
+        gestureStateRef.current[handIndex] = null;
         prevYRef.current[handIndex] = null;
-        wasPinchingRef.current[handIndex] = false;
         pinchOriginYRef.current[handIndex] = null;
-        pinchTravelRef.current[handIndex] = 0;
         continue;
       }
 
-      if (!Number.isFinite(tx) || !Number.isFinite(ty)) {
-        wasPinchingRef.current[handIndex] = isPinching;
-        continue;
-      }
+      // ── Coordinates not yet valid ────────────────────────────────────────
+      if (!Number.isFinite(tx) || !Number.isFinite(ty)) continue;
 
-      if (!wasPinching) {
+      // ── Pinch start → go pending ─────────────────────────────────────────
+      if (state === null) {
+        gestureStateRef.current[handIndex] = "pending";
         pinchOriginYRef.current[handIndex] = ty;
-        pinchTravelRef.current[handIndex] = 0;
-      } else {
-        if (!activeScrollRef.current[handIndex]) {
-          const prev = prevYRef.current[handIndex];
-          if (prev != null) {
-            pinchTravelRef.current[handIndex] =
-              (pinchTravelRef.current[handIndex] ?? 0) + Math.abs(ty - prev);
-          }
-        }
-      }
-
-      const cx = Math.max(0, Math.min(window.innerWidth - 1, tx));
-      const cy = Math.max(0, Math.min(window.innerHeight - 1, ty));
-      const els = document.elementsFromPoint(cx, cy);
-      const overList = els.some(
-        (el) => el === listRef.current || el.closest?.(".nw-list")
-      );
-
-      if (!wasPinching && status === "success" && !selected) {
-        const travel = pinchTravelRef.current[handIndex] ?? 0;
-        if (travel < SCROLL_INTENT_THRESHOLD) {
-          const cardEl = els.find(
-            (el) => el.classList?.contains("nw-card") || el.closest?.(".nw-card")
-          );
-          const card = cardEl?.closest?.(".nw-card") ?? cardEl;
-          const articleIndex = Number(card?.dataset?.nwArticleIndex);
-          if (Number.isInteger(articleIndex) && articles[articleIndex]) {
-            setSelected(articles[articleIndex]);
-            activeScrollRef.current[handIndex] = false;
-            prevYRef.current[handIndex] = null;
-            wasPinchingRef.current[handIndex] = true;
-            pinchOriginYRef.current[handIndex] = null;
-            pinchTravelRef.current[handIndex] = 0;
-            continue;
-          }
-        }
-      }
-
-      if (!activeScrollRef.current[handIndex]) {
-        const travel = pinchTravelRef.current[handIndex] ?? 0;
-        if (!overList || travel < SCROLL_INTENT_THRESHOLD) {
-          prevYRef.current[handIndex] = ty;
-          wasPinchingRef.current[handIndex] = isPinching;
-          continue;
-        }
-        activeScrollRef.current[handIndex] = true;
         prevYRef.current[handIndex] = ty;
-        wasPinchingRef.current[handIndex] = isPinching;
         continue;
       }
 
-      const py = prevYRef.current[handIndex];
-      if (py != null && listRef.current) {
-        const delta = py - ty;
-        if (Math.abs(delta) > 0.8) listRef.current.scrollTop += delta;
+      // ── Pending: check if travel crosses scroll threshold ────────────────
+      if (state === "pending") {
+        const travel = Math.abs(ty - (pinchOriginYRef.current[handIndex] ?? ty));
+
+        if (travel >= SCROLL_INTENT_THRESHOLD) {
+          // Only commit to scroll if the hand is actually over the list
+          const cx = Math.max(0, Math.min(window.innerWidth - 1, tx));
+          const cy = Math.max(0, Math.min(window.innerHeight - 1, ty));
+          const els = document.elementsFromPoint(cx, cy);
+          const overList = els.some(
+            (el) => el === listRef.current || el.closest?.(".nw-list")
+          );
+
+          if (overList) {
+            gestureStateRef.current[handIndex] = "scroll";
+          } else {
+            // Moved enough but not over list → don't scroll, reset origin
+            // so we re-evaluate on next frame without immediately re-committing
+            pinchOriginYRef.current[handIndex] = ty;
+          }
+        }
+
+        prevYRef.current[handIndex] = ty;
+        continue;
       }
-      prevYRef.current[handIndex] = ty;
-      wasPinchingRef.current[handIndex] = isPinching;
+
+      // ── Scroll: drive scrollTop ──────────────────────────────────────────
+      if (state === "scroll") {
+        const py = prevYRef.current[handIndex];
+        if (py != null && listRef.current) {
+          const delta = py - ty;
+          if (Math.abs(delta) > 0.8) listRef.current.scrollTop += delta;
+        }
+        prevYRef.current[handIndex] = ty;
+      }
     }
   }, [articles, handPositions, selected, status]);
 
