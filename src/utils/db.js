@@ -2,6 +2,7 @@ import sqlite3 from 'sqlite3';
 import { open } from 'sqlite';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { randomUUID } from 'node:crypto';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const dbPath = resolve(__dirname, '../../magic-mirror.db');
@@ -46,6 +47,13 @@ export async function initDB() {
     await db.exec('ALTER TABLE users ADD COLUMN name TEXT');
   }
 
+  // ✅ Neue Spalte: rfid_uid in users-Tabelle
+  const hasRfidColumn = userCols.some(col => col.name === 'rfid_uid');
+  if (!hasRfidColumn) {
+    await db.exec('ALTER TABLE users ADD COLUMN rfid_uid TEXT');
+    await db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_rfid_uid ON users(rfid_uid)');
+  }
+
   console.log('SQLite DB initialisiert:', dbPath);
 }
 
@@ -74,9 +82,41 @@ export async function upsertUser(uuid) {
   return { ...user, isNew: (result?.changes ?? 0) > 0 };
 }
 
+// ✅ Neuer User per RFID-UID anlegen oder vorhandenen zurückgeben
+export async function upsertUserByRFID(rfidUid) {
+  const database = getDB();
+
+  // Schauen ob dieser RFID schon einen User hat
+  const existing = await database.get(
+    'SELECT * FROM users WHERE rfid_uid = ?',
+    rfidUid
+  );
+
+  if (existing) {
+    console.log(`[RFID] Bekannter User: ${existing.uuid} (${existing.name || 'kein Name'})`);
+    return { ...existing, isNew: false };
+  }
+
+  // Neuen User mit echter UUID anlegen
+  const newUuid = randomUUID();
+  await database.run(
+    'INSERT INTO users (uuid, rfid_uid) VALUES (?, ?)',
+    newUuid, rfidUid
+  );
+
+  const user = await database.get('SELECT * FROM users WHERE uuid = ?', newUuid);
+  console.log(`[RFID] Neuer User angelegt: ${newUuid} → RFID: ${rfidUid}`);
+  return { ...user, isNew: true };
+}
+
 export async function getUser(uuid) {
   const database = getDB();
   return database.get('SELECT * FROM users WHERE uuid = ?', uuid);
+}
+
+export async function getUserByRFID(rfidUid) {
+  const database = getDB();
+  return database.get('SELECT * FROM users WHERE rfid_uid = ?', rfidUid);
 }
 
 export async function setUserName(uuid, name) {

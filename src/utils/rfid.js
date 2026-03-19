@@ -1,5 +1,6 @@
 import { SerialPort } from 'serialport';
 import { ReadlineParser } from '@serialport/parser-readline';
+import { upsertUserByRFID } from './db.js';
 
 const PORT_PATH = '/dev/ttyUSB0';
 const BAUD_RATE = 115200;
@@ -20,24 +21,36 @@ port.open((err) => {
   console.log(`[RFID] Verbunden mit ${PORT_PATH} @ ${BAUD_RATE} baud`);
 });
 
-parser.on('data', (line) => {
+parser.on('data', async (line) => {
   const trimmed = line.trim();
 
   // NUR Zeilen mit "Card UID:" verarbeiten, alles andere ignorieren
   if (!trimmed.startsWith('Card UID:')) return;
 
-  const uid = trimmed.replace(/^Card UID:\s*/i, '').trim();
-  if (!uid) return;
+  const rfidUid = trimmed.replace(/^Card UID:\s*/i, '').trim();
+  if (!rfidUid) return;
 
   const timestamp = new Date().toISOString();
   console.log(`----------------------------------`);
   console.log(`[RFID] Karte erkannt!`);
-  console.log(`[RFID] UID:  ${uid}`);
+  console.log(`[RFID] UID:  ${rfidUid}`);
   console.log(`[RFID] Zeit: ${timestamp}`);
-  console.log(`----------------------------------`);
 
-  global.lastRFIDUid = uid;
-  global.lastRFIDTime = timestamp;
+  // In DB speichern / abrufen
+  try {
+    const user = await upsertUserByRFID(rfidUid);
+    console.log(`[RFID] UUID: ${user.uuid} ${user.isNew ? '(neu angelegt)' : '(bekannt)'}`);
+
+    // Global verfügbar für API
+    global.lastRFIDUid = rfidUid;
+    global.lastRFIDUuid = user.uuid;
+    global.lastRFIDTime = timestamp;
+    global.lastRFIDUser = user;
+  } catch (err) {
+    console.error('[RFID] DB Fehler:', err.message);
+  }
+
+  console.log(`----------------------------------`);
 });
 
 port.on('error', (err) => {

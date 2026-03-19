@@ -511,6 +511,9 @@ const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings
         videoRef.current.cancelVideoFrameCallback(cameraFpsRef.current.callbackId);
       }
       cameraFpsRef.current.callbackId = null;
+      // Clean up shared face detector
+      window.__sharedFaceDetector?.close?.();
+      window.__sharedFaceDetector = null;
       posCallbackRef.current?.({ detected: false, handIndex: 0 });
       posCallbackRef.current?.({ detected: false, handIndex: 1 });
       return;
@@ -525,6 +528,28 @@ const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings
         hands.onResults(onResults);
         if (dead) { hands.close?.(); return; }
         handsRef.current = hands;
+
+        // ── Init FaceDetection AFTER Hands is set up, share via window ────────
+        // Must be sequential — two MediaPipe WASM solutions initializing in
+        // parallel will deadlock each other.
+        if (!window.__sharedFaceDetector && window.FaceDetection) {
+          try {
+            const fd = new window.FaceDetection({
+              locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${f}`,
+            });
+            fd.setOptions({ model: 'short', minDetectionConfidence: 0.5 });
+            await fd.initialize();
+            if (!dead) {
+              window.__sharedFaceDetector = fd;
+              console.log('[HandTrackingService] FaceDetector ready and shared ✓');
+            } else {
+              fd.close?.();
+            }
+          } catch (e) {
+            console.warn('[HandTrackingService] FaceDetector init failed:', e);
+          }
+        }
+        // ─────────────────────────────────────────────────────────────────────
 
         if (videoRef.current) {
           const cam = new Camera(videoRef.current, {
@@ -638,6 +663,9 @@ const HandTrackingService = ({ onHandPosition, onGesture, onVideoReady, settings
         videoRef.current.cancelVideoFrameCallback(cameraFpsRef.current.callbackId);
       }
       cameraFpsRef.current.callbackId = null;
+      // Clean up shared face detector on unmount
+      window.__sharedFaceDetector?.close?.();
+      window.__sharedFaceDetector = null;
     };
   }, [isEnabled, settings.preprocessingQuality, onResults]);
 

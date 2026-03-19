@@ -34,6 +34,8 @@ function getFallbackCompliment() {
 app.get('/api/rfid/last', (req, res) => {
   res.json({
     uid: global.lastRFIDUid || null,
+    uuid: global.lastRFIDUuid || null,
+    user: global.lastRFIDUser || null,
     time: global.lastRFIDTime || null,
   });
 });

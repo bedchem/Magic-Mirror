@@ -418,8 +418,6 @@ function LogoutButton({ onLogout }) {
   );
 }
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
-
 export default function IndexPage() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
@@ -542,10 +540,9 @@ export default function IndexPage() {
     setComplimentLoopStarted(false);
     complimentRequestedRef.current = false;
     activeWidgetsRef.current = [];
-    clearLoginFace(); // ← Gesichts-Fingerabdruck löschen
+    clearLoginFace();
   }, [clearLoginFace]);
 
-  // Keep ref in sync so handleAutoLogout can call the latest handleLogout
   useEffect(() => { handleLogoutRef.current = handleLogout; }, [handleLogout]);
 
   const handleUnlock = useCallback(async (authPayload) => {
@@ -558,14 +555,12 @@ export default function IndexPage() {
     setCurrentUser(uuid);
     setLoggedIn(true);
 
-    // ── Gesicht nach dem Unlock-Effekt erfassen (1,2 s Puffer) ──────────────
     setTimeout(() => {
-      registerLoginFace().then(ok => {
-        if (!ok) console.warn('[FacePresence] Kein Gesicht beim Login erkannt – Auto-Logout deaktiviert.');
-        else console.log('[FacePresence] Login-Gesicht gespeichert.');
-      });
+registerLoginFace().then(ok => {
+  if (!ok) console.warn('[FacePresence] No face detected during registration — auto-logout disabled.');
+  else console.log('[FacePresence] Login face stored.');
+});
     }, 1200);
-    // ─────────────────────────────────────────────────────────────────────────
 
     const userName = typeof user?.name === 'string' ? user.name.trim() : '';
     const isNewAccount = !!user?.isNew || !userName;
