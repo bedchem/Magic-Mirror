@@ -13,7 +13,7 @@ import { upsertUser, getUser, saveWidgetPositions, getWidgetPositions, deleteWid
 dotenv.config({ path: resolve(dirname(fileURLToPath(import.meta.url)), '.env') });
 
 await initDB();
-await import './src/utils/rfid.js'
+await import('./src/utils/rfid.js');
 
 const app = express();
 const upload = multer({ limits: { fileSize: 10 * 1024 * 1024 } });
