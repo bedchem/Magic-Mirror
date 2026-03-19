@@ -1,9 +1,11 @@
 import { SerialPort } from 'serialport';
 import { ReadlineParser } from '@serialport/parser-readline';
 import { upsertUserByRFID } from './db.js';
+import fetch from 'node-fetch';
 
 const PORT_PATH = '/dev/ttyUSB0';
 const BAUD_RATE = 115200;
+const API_BASE = 'http://localhost:3000';
 
 const port = new SerialPort({
   path: PORT_PATH,
@@ -36,21 +38,28 @@ parser.on('data', async (line) => {
   console.log(`[RFID] UID:  ${rfidUid}`);
   console.log(`[RFID] Zeit: ${timestamp}`);
 
-  // In DB speichern / abrufen
+  // Authentifizierung über API-Endpoint
   try {
-    const user = await upsertUserByRFID(rfidUid);
-    console.log(`[RFID] UUID: ${user.uuid} ${user.isNew ? '(neu angelegt)' : '(bekannt)'}`);
+    const response = await fetch(`${API_BASE}/api/rfid/authenticate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rfidUid })
+    });
 
-    // Global verfügbar für API
-    global.lastRFIDUid = rfidUid;
-    global.lastRFIDUuid = user.uuid;
-    global.lastRFIDTime = timestamp;
-    global.lastRFIDUser = user;
+    if (!response.ok) {
+      console.error(`[RFID] API-Fehler: HTTP ${response.status}`);
+      console.log(`----------------------------------`);
+      return;
+    }
+
+    const result = await response.json();
+    console.log(`[RFID] UUID: ${result.uuid} ${result.user?.isNew ? '(neu angelegt)' : '(bekannt)'}`);
+    console.log(`----------------------------------`);
+
   } catch (err) {
-    console.error('[RFID] DB Fehler:', err.message);
+    console.error('[RFID] Authentifizierungsfehler:', err.message);
+    console.log(`----------------------------------`);
   }
-
-  console.log(`----------------------------------`);
 });
 
 port.on('error', (err) => {

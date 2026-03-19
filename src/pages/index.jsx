@@ -69,18 +69,6 @@ function getGreetingByTime(date = new Date()) {
   return 'Gute Nacht';
 }
 
-const pollNFC = async () => {
-  try {
-    const res = await fetch('http://localhost:3000/api/rfid/last');
-    if (!res.ok) return;
-    const data = await res.json();
-    if (data.uid && data.uid !== lastRFIDRef.current && phase === 'idle') {
-      lastRFIDRef.current = data.uid;
-      triggerUnlock(ONLINE_UUID); 
-    }
-  } catch (e) {}
-};
-
 const NAME_KEYBOARD_ROWS = [
   ['Q','W','E','R','T','Y','U','I','O','P'],
   ['A','S','D','F','G','H','J','K','L'],
@@ -237,21 +225,36 @@ function LockScreen({ onUnlock, demoMode = false }) {
         const res = await fetch('http://localhost:3000/api/rfid/last');
         if (!res.ok) return;
         const data = await res.json();
+        
+        // Check if we have a new RFID scan
         if (!data.uid || data.uid === lastRFIDRef.current) return;
         lastRFIDRef.current = data.uid;
 
+        if (DEBUG) console.log('[Frontend] RFID Scan detected:', { uid: data.uid, uuid: data.uuid, user: data.user });
+
         if (ONLINE) {
-          // Bestehender Pfad: direkt unlock
+          // Online mode: direkt unlock
           triggerUnlock(ONLINE_UUID);
         } else {
-          // Neuer Pfad: Backend hat bereits User anlegen/laden, direkt die UUID + User verwenden
+          // Offline mode: use the UUID and user from RFID scan
           const uuid = data.uuid;
           const user = data.user;
-          if (uuid && user) {
-            triggerUnlock({ uuid, user });
+          
+          if (!uuid) {
+            if (DEBUG) console.warn('[Frontend] RFID: UUID fehlt in Response');
+            return;
           }
+          if (!user) {
+            if (DEBUG) console.warn('[Frontend] RFID: user Object fehlt in Response');
+            return;
+          }
+
+          if (DEBUG) console.log('[Frontend] RFID: Triggering unlock with', { uuid, user });
+          triggerUnlock({ uuid, user });
         }
-      } catch (e) {}
+      } catch (e) {
+        console.error('[Frontend] RFID polling fehler:', e);
+      }
     };
 
     pollingRef.current = setInterval(pollNFC, 500);
