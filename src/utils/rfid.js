@@ -8,14 +8,17 @@ const RETRY_DELAY_MS = 3000;
 const MAX_RETRIES = 10;
 
 let port = null;
+let destroyed = false;
 
 function connect(attempt = 1) {
+  destroyed = false;
   port = new SerialPort({ path: PORT_PATH, baudRate: BAUD_RATE, autoOpen: false });
   const parser = port.pipe(new ReadlineParser({ delimiter: '\r\n' }));
 
   port.open((err) => {
     if (err) {
       console.error(`[RFID] Fehler (Versuch ${attempt}/${MAX_RETRIES}): ${err.message}`);
+      destroyed = true;
       port.destroy();
       if (attempt < MAX_RETRIES) {
         setTimeout(() => connect(attempt + 1), RETRY_DELAY_MS);
@@ -52,6 +55,7 @@ function connect(attempt = 1) {
 
   port.on('error', (err) => console.error('[RFID] Serieller Fehler:', err.message));
   port.on('close', () => {
+    if (destroyed) return;
     console.warn('[RFID] Verbindung getrennt – reconnect in 3s...');
     setTimeout(() => connect(), RETRY_DELAY_MS);
   });
