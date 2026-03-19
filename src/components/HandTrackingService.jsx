@@ -89,7 +89,6 @@ const makeEmptySlot = () => ({
 });
 const makeEmptySlots = () => ({ [PRIMARY_SLOT]: makeEmptySlot() });
 
-// Draw connectors manually (no @mediapipe/drawing_utils needed)
 function drawHandConnectors(ctx, landmarks, connections, { color = '#00ff00', lineWidth = 2 } = {}) {
   ctx.save();
   ctx.strokeStyle = color;
@@ -312,7 +311,6 @@ const allLabels = (results.handedness || []).map(h => {
       const palmVisible = isPalmFacingCamera(hand, label);
 
       if (showPreviewRef.current && ctx) {
-        // Scale landmarks to canvas pixels for drawing
         const mirrored = hand.map(lm => ({ ...lm, x: (1 - lm.x) * w, y: lm.y * h }));
         const stateTag = sl.state === SLOT_STATE.LOCKED ? '🔒'
           : sl.state === SLOT_STATE.TENTATIVE ? `⏳${sl.tentativeFrames}/${LOCK_FRAMES}` : '?';
@@ -420,7 +418,6 @@ const allLabels = (results.handedness || []).map(h => {
           velY: ((prev?.velY ?? 0) * 0.6 + velY * 0.4),
         };
 
-        // Apply flipCamera transformation to coordinates
         const finalX = flipCameraRef.current ? (1 - sx) * window.innerWidth : sx * window.innerWidth;
         const finalY = flipCameraRef.current ? (1 - sy) * window.innerHeight : sy * window.innerHeight;
         const finalPinchMidX = flipCameraRef.current ? window.innerWidth - pinchMidX : pinchMidX;
@@ -460,7 +457,6 @@ const allLabels = (results.handedness || []).map(h => {
 
   useEffect(() => {
     if (!isEnabled) {
-      // Stop stream
       if (cameraStreamRef.current) {
         cameraStreamRef.current.getTracks().forEach(t => t.stop());
         cameraStreamRef.current = null;
@@ -491,7 +487,6 @@ const allLabels = (results.handedness || []).map(h => {
 
     const init = async () => {
       try {
-        // Init tasks-vision WASM (CPU delegate — works on Pi without WebGL)
         const vision = await FilesetResolver.forVisionTasks(
           'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm'
         );
@@ -514,12 +509,10 @@ const allLabels = (results.handedness || []).map(h => {
         if (dead) { handLandmarker.close?.(); return; }
         handsRef.current = handLandmarker;
 
-        // Start camera stream manually (no @mediapipe/camera_utils)
         const stream = await navigator.mediaDevices.getUserMedia({
           video: {
             width: { ideal: cfg.camera.width },
             height: { ideal: cfg.camera.height },
-            facingMode: 'user',
           },
           audio: false,
         });
@@ -539,13 +532,11 @@ const allLabels = (results.handedness || []).map(h => {
 
         if (dead) return;
 
-        // Measure camera FPS from track settings
         const track = stream.getVideoTracks?.()?.[0];
         const trackFps = Number(track?.getSettings?.()?.frameRate);
         if (Number.isFinite(trackFps) && trackFps > 0)
           cameraFpsRef.current.fallback = trackFps;
 
-        // Optional: requestVideoFrameCallback for accurate FPS measurement
         if (typeof videoEl.requestVideoFrameCallback === 'function') {
           const onVideoFrame = (_now, metadata) => {
             if (dead) return;
@@ -574,7 +565,6 @@ const allLabels = (results.handedness || []).map(h => {
 
         videoReadyRef.current?.(videoEl);
 
-        // Main processing loop via requestAnimationFrame
         const processFrame = () => {
           if (dead) return;
           animFrameRef.current = requestAnimationFrame(processFrame);
@@ -655,9 +645,6 @@ const allLabels = (results.handedness || []).map(h => {
   }, [isEnabled, settings.preprocessingQuality, onResults]);
 
   useEffect(() => {
-    // No direct setOptions equivalent in tasks-vision at runtime;
-    // confidence changes require re-init (handled via isEnabled dep above if needed).
-    // For live updates, you'd close and recreate — left as-is to match original behavior.
   }, [settings.minDetectionConfidence, settings.minTrackingConfidence, settings.preprocessingQuality]);
 
   useEffect(() => {

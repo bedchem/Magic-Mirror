@@ -12,6 +12,8 @@ import { upsertUser, getUser, saveWidgetPositions, getWidgetPositions, deleteWid
 
 dotenv.config({ path: resolve(dirname(fileURLToPath(import.meta.url)), '.env') });
 
+const AI = false;
+
 await initDB();
 await import('./src/utils/rfid.js');
 
@@ -230,6 +232,11 @@ app.get('/api/test', (req, res) => {
 app.post('/api/compliment', upload.single('image'), async (req, res) => {
   console.log('Received compliment request');
 
+  if (!AI) {
+    console.log('AI is disabled – returning fallback compliment');
+    return res.send(getFallbackCompliment());
+  }
+
   if (!req.file) {
     console.error('No image file in request');
     return res.status(400).send('No image uploaded');
@@ -248,7 +255,7 @@ app.post('/api/compliment', upload.single('image'), async (req, res) => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: '-',
+          model: 'qwen3-vl:2b-instruct',
           stream: false,
           messages: [
             {
