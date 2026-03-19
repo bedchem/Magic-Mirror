@@ -241,7 +241,7 @@ app.post('/api/compliment', upload.single('image'), async (req, res) => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: '-',
+          model: 'qwen3-vl:2b-instruct',
           stream: false,
           messages: [
             {
