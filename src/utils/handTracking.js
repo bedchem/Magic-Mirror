@@ -71,10 +71,10 @@ const QUALITY_PRESETS = {
     maxFrameRate: null
   },
   pi: {
-    maxWidth: 480,
-    maxHeight: 360,
-    cameraWidth: 480,
-    cameraHeight: 360,
+    maxWidth: 1280,
+    maxHeight: 720,
+    cameraWidth: 1280,
+    cameraHeight: 720,
     modelComplexity: 0,
     maxFrameRate: 60
   }
