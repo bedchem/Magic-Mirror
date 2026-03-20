@@ -135,14 +135,14 @@
 }
 
 .trash-zone--active {
-    background: rgba(248, 113, 113, 0.05);
-    border-top-color: rgba(248, 113, 113, 0.2);
+    background: rgba(255, 0, 0, 0.288);
+    border-top-color: rgba(255, 0, 0, 0.932);
     backdrop-filter: blur(6px);
 }
 
 .trash-zone--over {
-    background: rgba(248, 113, 113, 0.18);
-    border-top-color: rgba(248, 113, 113, 0.55);
+    background: rgba(255, 0, 0, 0.18);
+    border-top-color: rgba(255, 0, 0, 0.55);
 }
 
 .trash-zone__icon {
@@ -151,13 +151,13 @@
 }
 
 .trash-zone__icon--normal {
-    stroke: rgba(248, 113, 113, 0.5);
+    stroke: rgba(255, 0, 0, 0.5);
     width: 26px;
     height: 26px;
 }
 
 .trash-zone__icon--over {
-    stroke: #f87171;
+    stroke: #ff0000;
     width: 34px;
     height: 34px;
     filter: drop-shadow(0 0 8px rgba(248, 113, 113, 0.5));
@@ -171,11 +171,11 @@
 }
 
 .trash-zone__label--normal {
-    color: rgba(248, 113, 113, 0.5);
+    color: rgba(255, 0, 0, 0.5);
 }
 
 .trash-zone__label--over {
-    color: #f87171;
+    color: #ff0000;
 }
 
 button.hand-hover {
