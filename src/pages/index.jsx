@@ -3,10 +3,10 @@ import HandTrackingService from '../components/HandTrackingService';
 import WidgetDragManager from '../components/WidgetDragManager';
 import notificationImage from '../assets/notification.png';
 
-const DEBUG = true;
+const DEBUG = false;
 const ONLINE = false;
 const ONLINE_UUID = 'online-user-default';
-const pi = true;
+const pi = false;
 
 const defaultSettings = {
   enabled: true,
