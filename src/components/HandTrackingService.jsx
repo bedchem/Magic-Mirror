@@ -358,7 +358,7 @@ const HandTrackingService = ({
         const clickDist = Math.hypot(tx - mdx, ty - mdy);
         const pinkyDist = Math.hypot(tx - pkx, ty - pky);
 
-        const pinchThr = s.pinchSensitivity || 0.2;
+        const pinchThr = (s.pinchSensitivity || 0.2) * 0.9;
         const normPinch = clamp01(pinchDist / (al * 4.5));
         const scaledThr = al * 4.5 * pinchThr;
         const pinchStr = scaledThr > 0 ? Math.max(0, 1 - pinchDist / scaledThr) : 0;
