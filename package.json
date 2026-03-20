@@ -2,13 +2,18 @@
   "name": "magic-mirror",
   "private": true,
   "version": "0.0.0",
+  "main": "electron.cjs",
   "type": "module",
   "scripts": {
     "dev": "concurrently \"vite\" \"nodemon server.js\"",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "preview:electron": "vite preview --host 127.0.0.1 --port 4173 --strictPort",
+    "server:electron": "node server.js",
     "prestart": "vite build",
+    "preelectron": "vite build",
+    "electron": "concurrently -k \"npm run server:electron\" \"npm run preview:electron\" \"electron .\"",
     "start": "concurrently \"vite preview\" \"node server.js\""
   },
   "dependencies": {
@@ -41,6 +46,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react-swc": "^4.2.2",
     "concurrently": "^9.2.1",
+    "electron": "^41.0.3",
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
