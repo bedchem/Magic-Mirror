@@ -151,27 +151,27 @@
 }
 
 .trash-zone__icon--normal {
-    stroke: rgba(255, 0, 0, 0.5);
-    width: 26px;
-    height: 26px;
+    stroke: rgb(255, 0, 0);
+    width: 46px;
+    height: 46px;
 }
 
 .trash-zone__icon--over {
     stroke: #ff0000;
-    width: 34px;
-    height: 34px;
+    width: 64px;
+    height: 64px;
     filter: drop-shadow(0 0 8px rgba(248, 113, 113, 0.5));
 }
 
 .trash-zone__label {
-    font-size: 13px;
-    font-weight: 600;
+    font-size: 30px;
+    font-weight: bolder;
     letter-spacing: 0.02em;
     transition: color 0.2s ease;
 }
 
 .trash-zone__label--normal {
-    color: rgba(255, 0, 0, 0.5);
+    color: rgb(255, 0, 0);
 }
 
 .trash-zone__label--over {
