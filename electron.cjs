@@ -1,6 +1,6 @@
 const { app, BrowserWindow, session } = require('electron');
 
-const APP_URL = 'http://127.0.0.1:4173';
+const APP_URL = 'http://localhost:4173';
 
 async function waitForFrontend(timeoutMs = 30000) {
   const started = Date.now();

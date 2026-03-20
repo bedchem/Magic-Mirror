@@ -9,7 +9,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "preview:electron": "vite preview --host 127.0.0.1 --port 4173 --strictPort",
+    "preview:electron": "vite preview --host localhost --port 4173 --strictPort",
     "server:electron": "node server.js",
     "prestart": "vite build",
     "preelectron": "vite build",
