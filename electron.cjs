@@ -10,7 +10,6 @@ async function waitForFrontend(timeoutMs = 30000) {
       const response = await fetch(APP_URL, { method: 'HEAD' });
       if (response.ok) return true;
     } catch {
-      // Service not ready yet.
     }
 
     await new Promise((resolve) => setTimeout(resolve, 500));
