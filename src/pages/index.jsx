@@ -3,7 +3,7 @@ import HandTrackingService from '../components/HandTrackingService';
 import WidgetDragManager from '../components/WidgetDragManager';
 import notificationImage from '../assets/notification.png';
 
-const DEBUG = false;
+const DEBUG = true;
 const ONLINE = false;
 const ONLINE_UUID = 'online-user-default';
 const pi = true;
@@ -287,7 +287,7 @@ function LockScreen({ onUnlock }) {
   );
 }
 
-function HandNav({ onSpawnWidget }) {
+function HandNav({ onSpawnWidget, isDarkMode = true }) {
   const [expanded, setExpanded] = useState(false);
   const [hoveredIdx, setHoveredIdx] = useState(null);
   const plusRef = useRef(null);
@@ -337,7 +337,7 @@ function HandNav({ onSpawnWidget }) {
 
   return (
     <>
-      <button ref={plusRef} onClick={() => setExpanded(v => !v)} className="hand-nav__toggle" data-expanded={expanded}>
+      <button ref={plusRef} onClick={() => setExpanded(v => !v)} className={`hand-nav__toggle${!isDarkMode ? ' hand-nav__toggle--light' : ''}`} data-expanded={expanded}>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="30" height="30"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
       </button>
       <nav className="hand-nav__list">
@@ -345,8 +345,8 @@ function HandNav({ onSpawnWidget }) {
           const isHovered = hoveredIdx === i;
           return (
             <div key={item.label} ref={el => { itemRefs.current[i] = el; }} className="hand-nav__item" data-expanded={expanded} style={{ transitionDelay: `${50 + i * 60}ms` }}>
-              <button onClick={() => onSpawnWidget(item.widgetId)} className="hand-nav__btn" data-hovered={isHovered}>{item.icon}</button>
-              {isHovered && <span className="hand-nav__label">{item.label}</span>}
+            <button onClick={() => onSpawnWidget(item.widgetId)} className={`hand-nav__btn${!isDarkMode ? ' hand-nav__btn--light' : ''}`} data-hovered={isHovered}>{item.icon}</button>             
+             {isHovered && <span className="hand-nav__label">{item.label}</span>}
             </div>
           );
         })}
@@ -429,8 +429,7 @@ function LogoutButton({ onLogout }) {
 
 function ThemeToggleButton({ isDarkMode, onToggle }) {
   return (
-    <button className="theme-toggle-btn" onClick={onToggle} title={isDarkMode ? 'Light Mode' : 'Dark Mode'}>
-      {isDarkMode ? (
+ <button className={`theme-toggle-btn${!isDarkMode ? ' theme-toggle-btn--light' : ''}`} onClick={onToggle} title={isDarkMode ? 'Light Mode' : 'Dark Mode'}>      {isDarkMode ? (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="30" height="30">
           <circle cx="12" cy="12" r="5" /><line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" />
           <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
@@ -628,8 +627,7 @@ export default function IndexPage() {
           {DEBUG && <StatusBar statuses={statuses} />}
           {!isDragging && <LogoutButton onLogout={handleLogout} />}
           {!isDragging && <ThemeToggleButton isDarkMode={isDarkMode} onToggle={() => setIsDarkMode(v => !v)} />}
-          {!pendingNameSetup && <HandNav onSpawnWidget={handleSpawnWidget} />}
-          <WidgetDragManager
+          {!pendingNameSetup && <HandNav onSpawnWidget={handleSpawnWidget} isDarkMode={isDarkMode} />} <WidgetDragManager
             key={currentUser}
             spawnRef={spawnRef}
             initialWidgets={savedWidgetPositions}

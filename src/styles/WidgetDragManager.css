@@ -185,3 +185,13 @@ button.hand-hover {
     color: #c9b8f0 !important;
     box-shadow: 0 0 0 4px rgba(155, 92, 252, 0.12), 0 0 14px rgba(155, 92, 252, 0.3) !important;
 }
+
+.draggable-widget--light button.hand-hover,
+button.hand-hover[class*="--light"] {
+    outline: 2px solid rgba(59, 130, 246, 0.8) !important;
+    outline-offset: 2px !important;
+    background-color: rgb(255, 255, 255) !important;
+    color: rgba(59, 111, 180, 0.9) !important;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12), 0 0 14px rgba(59, 130, 246, 0.25) !important;
+}
+
