@@ -32,6 +32,7 @@ body {
   font-family: 'Outfit', sans-serif;
   overflow: hidden;
   position: relative;
+  cursor: none;
 }
 
 .status-bar {
