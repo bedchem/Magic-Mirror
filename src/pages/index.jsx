@@ -4,9 +4,9 @@ import WidgetDragManager from '../components/WidgetDragManager';
 import notificationImage from '../assets/notification.png';
 
 const DEBUG = false;
-const ONLINE = false;
+const ONLINE = true;
 const ONLINE_UUID = 'online-user-default';
-const pi = true;
+const pi = false;
 
 const defaultSettings = {
   enabled: true,
